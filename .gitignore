@@ -1,0 +1,13 @@
+bin/
+obj/
+artifacts/
+TestResults/
+
+.vs/
+.idea/
+*.swp
+
+*.user
+*.suo
+*.userprefs
+*.DotSettings.user
