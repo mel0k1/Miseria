@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
              xmlns:vm="using:Miseria.App.ViewModels"
              x:Class="Miseria.App.Views.LibraryView"
              x:DataType="vm:LibraryViewModel">
@@ -26,20 +27,27 @@
             <ListBox ItemsSource="{Binding Visible}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
-                        <Grid ColumnDefinitions="44,*"
+                        <Grid ColumnDefinitions="44,*,Auto"
                               ColumnSpacing="12"
                               Margin="0,4">
                             <Border Width="36"
                                     Height="36"
                                     CornerRadius="4"
                                     VerticalAlignment="Center"
+                                    ClipToBounds="True"
                                     Background="{DynamicResource ControlFillColorDefaultBrush}">
-                                <TextBlock Text="{Binding Initial}"
-                                           FontSize="15"
-                                           FontWeight="SemiBold"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <Panel>
+                                    <Image Source="{Binding Icon}"
+                                           IsVisible="{Binding HasIcon}"
+                                           Stretch="UniformToFill" />
+                                    <TextBlock IsVisible="{Binding !HasIcon}"
+                                               Text="{Binding Initial}"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Panel>
                             </Border>
                             <StackPanel Grid.Column="1"
                                         VerticalAlignment="Center"

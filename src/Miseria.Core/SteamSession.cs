@@ -332,7 +332,8 @@ public sealed class SteamSession : IDisposable
                         continue;
 
                     var type = app.KeyValues["common"]["type"].AsString() ?? string.Empty;
-                    snapshots.Add(new AppSnapshot(app.ID, name, type.ToLowerInvariant()));
+                    var icon = app.KeyValues["common"]["icon"].AsString();
+                    snapshots.Add(new AppSnapshot(app.ID, name, type.ToLowerInvariant(), icon));
                 }
             }
 

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Miseria.App.Services;
 using Miseria.Core;
 
 namespace Miseria.App.ViewModels;
@@ -8,6 +9,7 @@ namespace Miseria.App.ViewModels;
 public partial class LibraryViewModel : ObservableObject
 {
     private readonly SteamSession _session;
+    private readonly AppIconCache _icons;
     private readonly DispatcherTimer _refreshTimer;
 
     public ObservableCollection<AppItem> Apps { get; } = [];
@@ -28,9 +30,10 @@ public partial class LibraryViewModel : ObservableObject
         ? "Загрузка содержимого из Steam"
         : $"Приложений: {Apps.Count}";
 
-    public LibraryViewModel(SteamSession session)
+    public LibraryViewModel(SteamSession session, AppIconCache icons)
     {
         _session = session;
+        _icons = icons;
 
         _session.LibraryLoaded += apps => Dispatcher.UIThread.Post(() => ReplaceApps(apps));
         _session.LoggedOut += () => Dispatcher.UIThread.Post(Clear);
@@ -59,10 +62,31 @@ public partial class LibraryViewModel : ObservableObject
         Apps.Clear();
 
         foreach (var snapshot in apps)
-            Apps.Add(new AppItem(snapshot));
+        {
+            var item = new AppItem(snapshot);
+            Apps.Add(item);
+            _ = LoadIconAsync(item);
+        }
 
         HasList = true;
         RebuildVisible();
+    }
+
+    private async Task LoadIconAsync(AppItem item)
+    {
+        var bitmap = await _icons.LoadAsync(item.AppId, item.IconHash);
+
+        if (bitmap == null)
+            return;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (item.IconHash != null)
+            {
+                item.Icon = bitmap;
+                item.HasIcon = true;
+            }
+        });
     }
 
     public void Clear()

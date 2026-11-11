@@ -1,14 +1,32 @@
+using Avalonia.Media.Imaging;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Miseria.Core;
 
 namespace Miseria.App.ViewModels;
 
-public class AppItem(AppSnapshot snapshot)
+public partial class AppItem : ObservableObject
 {
-    public uint AppId => snapshot.AppId;
+    public uint AppId { get; }
 
-    public string Name => snapshot.Name;
+    public string Name { get; }
 
-    public string Type => snapshot.Type;
+    public string Type { get; }
+
+    public string? IconHash { get; }
+
+    [ObservableProperty]
+    private Bitmap? _icon;
+
+    [ObservableProperty]
+    private bool _hasIcon;
+
+    public AppItem(AppSnapshot snapshot)
+    {
+        AppId = snapshot.AppId;
+        Name = snapshot.Name;
+        Type = snapshot.Type;
+        IconHash = snapshot.IconHash;
+    }
 
     public string TypeText => Type switch
     {
