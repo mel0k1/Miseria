@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Miseria.App/Miseria.App.csproj" />
+    <Project Path="src/Miseria.Core/Miseria.Core.csproj" />
+  </Folder>
+</Solution>
