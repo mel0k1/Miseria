@@ -16,6 +16,8 @@ public class App : Application
     private ServiceProvider? _services;
     private LogonWindow? _logonWindow;
     private MainWindow? _mainWindow;
+    private AccountSnapshot? _lastAccount;
+    private bool _familyViewHandled;
 
     public override void Initialize()
     {
@@ -27,6 +29,7 @@ public class App : Application
         var collection = new ServiceCollection();
 
         collection.AddSingleton<SettingsStore>();
+        collection.AddSingleton<InstallStore>();
         collection.AddSingleton<SessionStore>();
         collection.AddSingleton<SteamSession>();
         collection.AddSingleton<AvatarCache>();
@@ -43,8 +46,10 @@ public class App : Application
         _services = collection.BuildServiceProvider();
 
         var session = _services.GetRequiredService<SteamSession>();
-        session.LoggedIn += account => Dispatcher.UIThread.Post(() => ShowMain(account));
+        session.LoggedIn += account => Dispatcher.UIThread.Post(() => OnLoggedIn(account));
         session.LoggedOut += () => Dispatcher.UIThread.Post(ShowLogon);
+
+        _services.GetRequiredService<LogonViewModel>().ProceedRequested += OnFamilyViewProceed;
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
         {
@@ -57,6 +62,27 @@ public class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    private void OnLoggedIn(AccountSnapshot account)
+    {
+        _lastAccount = account;
+
+        if (account.FamilyViewLocked && !_familyViewHandled)
+        {
+            _services!.GetRequiredService<LogonViewModel>().RequestFamilyView();
+            return;
+        }
+
+        ShowMain(account);
+    }
+
+    private void OnFamilyViewProceed()
+    {
+        _familyViewHandled = true;
+
+        if (_lastAccount != null)
+            ShowMain(_lastAccount);
     }
 
     private void ShowMain(AccountSnapshot account)
@@ -74,6 +100,9 @@ public class App : Application
 
     private void ShowLogon()
     {
+        _familyViewHandled = false;
+        _lastAccount = null;
+
         if (_logonWindow == null)
         {
             _logonWindow = new LogonWindow(_services!.GetRequiredService<LogonViewModel>());

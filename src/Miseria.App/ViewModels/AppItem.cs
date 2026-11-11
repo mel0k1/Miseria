@@ -20,6 +20,9 @@ public partial class AppItem : ObservableObject
     [ObservableProperty]
     private bool _hasIcon;
 
+    [ObservableProperty]
+    private bool _isInstalled;
+
     public AppItem(AppSnapshot snapshot)
     {
         AppId = snapshot.AppId;

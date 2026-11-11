@@ -17,6 +17,11 @@
                 <TextBlock Text="{Binding CountText}"
                            FontSize="12"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="{Binding LaunchMessage}"
+                           IsVisible="{Binding LaunchMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
             </StackPanel>
             <TextBox Grid.Column="1"
                      Text="{Binding SearchText}"
@@ -59,15 +64,32 @@
                                            FontSize="12"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
-                            <Button Grid.Column="2"
-                                    VerticalAlignment="Center"
-                                    Padding="8"
-                                    ToolTip.Tip="Скачать через Steam CDN"
-                                    Command="{Binding $parent[UserControl].DataContext.Download.StartCommand}"
-                                    CommandParameter="{Binding}">
-                                <ui:FASymbolIcon Symbol="Download"
-                                                 FontSize="16" />
-                            </Button>
+                            <StackPanel Grid.Column="2"
+                                        Orientation="Horizontal"
+                                        Spacing="4"
+                                        VerticalAlignment="Center">
+                                <Button IsVisible="{Binding IsInstalled}"
+                                        Padding="12,6"
+                                        Classes="accent"
+                                        ToolTip.Tip="Запустить установленную игру"
+                                        Command="{Binding $parent[UserControl].DataContext.PlayCommand}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <ui:FASymbolIcon Symbol="Play"
+                                                         FontSize="14" />
+                                        <TextBlock Text="Играть" />
+                                    </StackPanel>
+                                </Button>
+                                <Button IsVisible="{Binding !IsInstalled}"
+                                        VerticalAlignment="Center"
+                                        Padding="8"
+                                        ToolTip.Tip="Скачать через Steam CDN"
+                                        Command="{Binding $parent[UserControl].DataContext.Download.StartCommand}"
+                                        CommandParameter="{Binding}">
+                                    <ui:FASymbolIcon Symbol="Download"
+                                                     FontSize="16" />
+                                </Button>
+                            </StackPanel>
                         </Grid>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
