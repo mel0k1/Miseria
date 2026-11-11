@@ -13,6 +13,7 @@ Early development. What works now:
 - Password logon through the SteamKit2 authentication API
 - Steam Guard prompts (email code, authenticator code) shown in the logon window
 - Friends list with live presence: online, away, snooze, looking to trade or play, in-game with the game name, avatars cached on disk
+- Library of owned apps: licenses are resolved to app ids through PICS product info, names and types are shown with search
 - Automatic re-logon between launches: the refresh token is saved and reused, no password prompt until the session expires
 - Session status and logoff (logoff deletes the stored session)
 - Four themes: Light, Dark, Crimson and Kiwi
@@ -55,15 +56,14 @@ The Kiwi palette borrows from both the fruit (green accent) and the bird (brown 
 
 ```
 Miseria.slnx
-src/Miseria.Core    SteamKit2 session: connect, authenticate, guard prompts, friends feed, logoff
+src/Miseria.Core    SteamKit2 session: connect, authenticate, guard prompts, friends feed, library feed, logoff
 src/Miseria.App     Avalonia UI: MVVM view models, FluentAvalonia shell, theming
 ```
 
-`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`.
+`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`, `LibraryLoaded`.
 
 ## Roadmap
 
-- Owned apps and packages through licenses and PICS
 - Downloads via SteamContent
 - Family View awareness
 
