@@ -30,12 +30,14 @@ public class App : Application
         collection.AddSingleton<SessionStore>();
         collection.AddSingleton<SteamSession>();
         collection.AddSingleton<AvatarCache>();
+        collection.AddSingleton<AppIconCache>();
         collection.AddSingleton<ThemeService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
         collection.AddSingleton<FriendsViewModel>();
         collection.AddSingleton<HomeViewModel>();
         collection.AddSingleton<LibraryViewModel>();
+        collection.AddSingleton<DownloadViewModel>();
         collection.AddSingleton<SettingsViewModel>();
 
         _services = collection.BuildServiceProvider();

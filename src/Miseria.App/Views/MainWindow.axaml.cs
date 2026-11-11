@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
 using Miseria.App.ViewModels;
 
@@ -17,6 +18,7 @@ public partial class MainWindow : Window
     {
         ViewModel = viewModel;
         DataContext = viewModel;
+        viewModel.Download.Started += OnDownloadStarted;
     }
 
     public MainViewModel ViewModel { get; private set; } = null!;
@@ -25,6 +27,23 @@ public partial class MainWindow : Window
     {
         if (Nav.SelectedItem == null && Nav.MenuItems.Count > 0)
             Nav.SelectedItem = Nav.MenuItems[0];
+    }
+
+    private void OnDownloadStarted()
+    {
+        Dispatcher.UIThread.Post(() => NavigateTo("downloads"));
+    }
+
+    private void NavigateTo(string tag)
+    {
+        foreach (var item in Nav.MenuItems.OfType<FANavigationViewItem>())
+        {
+            if (item.Tag as string == tag)
+            {
+                Nav.SelectedItem = item;
+                return;
+            }
+        }
     }
 
     private void OnNavSelectionChanged(object? sender, FANavigationViewSelectionChangedEventArgs e)

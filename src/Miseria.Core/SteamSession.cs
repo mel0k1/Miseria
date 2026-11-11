@@ -12,6 +12,7 @@ public sealed class SteamSession : IDisposable
     private readonly SteamUser _user;
     private readonly SteamFriends _friends;
     private readonly SteamApps _apps;
+    private readonly SteamContent _content;
     private readonly SessionStore _store;
     private readonly CancellationTokenSource _pumpCts = new();
     private readonly HashSet<ulong> _friendIds = [];
@@ -44,6 +45,7 @@ public sealed class SteamSession : IDisposable
         _user = _client.GetHandler<SteamUser>()!;
         _friends = _client.GetHandler<SteamFriends>()!;
         _apps = _client.GetHandler<SteamApps>()!;
+        _content = _client.GetHandler<SteamContent>()!;
 
         _manager.Subscribe<SteamClient.ConnectedCallback>(_ => _connected.TrySetResult());
         _manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
@@ -151,6 +153,8 @@ public sealed class SteamSession : IDisposable
             LogonFailed?.Invoke(new LogonFailure(LogonFailureReason.ConnectionFailed, ex.Message));
         }
     }
+
+    public SteamDownloader CreateDownloader() => new(_client, _apps, _content);
 
     public void LogOff()
     {

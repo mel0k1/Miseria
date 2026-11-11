@@ -17,6 +17,9 @@
         <DataTemplate DataType="vm:LibraryViewModel">
             <views:LibraryView />
         </DataTemplate>
+        <DataTemplate DataType="vm:DownloadViewModel">
+            <views:DownloadsView />
+        </DataTemplate>
         <DataTemplate DataType="vm:HomeViewModel">
             <views:HomeView />
         </DataTemplate>
@@ -39,6 +42,11 @@
             <ui:FANavigationViewItem Tag="library" Content="Библиотека">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Games" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="downloads" Content="Загрузки">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Download" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="home" Content="Главная">

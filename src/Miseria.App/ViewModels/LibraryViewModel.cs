@@ -12,6 +12,8 @@ public partial class LibraryViewModel : ObservableObject
     private readonly AppIconCache _icons;
     private readonly DispatcherTimer _refreshTimer;
 
+    public DownloadViewModel Download { get; }
+
     public ObservableCollection<AppItem> Apps { get; } = [];
 
     public ObservableCollection<AppItem> Visible { get; } = [];
@@ -30,10 +32,11 @@ public partial class LibraryViewModel : ObservableObject
         ? "Загрузка содержимого из Steam"
         : $"Приложений: {Apps.Count}";
 
-    public LibraryViewModel(SteamSession session, AppIconCache icons)
+    public LibraryViewModel(SteamSession session, AppIconCache icons, DownloadViewModel download)
     {
         _session = session;
         _icons = icons;
+        Download = download;
 
         _session.LibraryLoaded += apps => Dispatcher.UIThread.Post(() => ReplaceApps(apps));
         _session.LoggedOut += () => Dispatcher.UIThread.Post(Clear);

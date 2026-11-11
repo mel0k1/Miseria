@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.DownloadsView"
+             x:DataType="vm:DownloadViewModel">
+    <Grid RowDefinitions="Auto,*"
+          RowSpacing="16"
+          Margin="28,24,28,16">
+        <StackPanel Grid.Row="0" Spacing="2">
+            <TextBlock Text="Загрузки"
+                       FontSize="24"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="Файлы загружаются напрямую из Steam CDN"
+                       FontSize="12"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <Panel Grid.Row="1">
+            <StackPanel IsVisible="{Binding !HasContent}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="8">
+                <TextBlock Text="Нет загрузок"
+                           HorizontalAlignment="Center"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="Нажмите кнопку скачивания напротив игры в библиотеке"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <Border IsVisible="{Binding HasContent}"
+                    MaxWidth="640"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Stretch"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="24,20">
+                <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="12">
+                        <TextBlock Text="{Binding AppName}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis" />
+                        <Button Grid.Column="1"
+                                Command="{Binding CancelCommand}"
+                                IsVisible="{Binding IsActive}"
+                                Content="Отмена" />
+                    </Grid>
+                    <ProgressBar Value="{Binding ProgressPercent}"
+                                 IsIndeterminate="{Binding IsPreparing}"
+                                 Maximum="100"
+                                 Height="4" />
+                    <Grid ColumnDefinitions="*,Auto"
+                          ColumnSpacing="12">
+                        <TextBlock Text="{Binding ProgressText}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding SpeedText}"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </Grid>
+                    <TextBlock Text="{Binding StatusText}"
+                               FontSize="12"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{Binding DestinationText}"
+                               FontSize="12"
+                               IsVisible="{Binding HasDestination}"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                </StackPanel>
+            </Border>
+        </Panel>
+    </Grid>
+</UserControl>
