@@ -35,43 +35,90 @@
                     BorderThickness="1"
                     CornerRadius="8"
                     Padding="24,20">
-                <StackPanel Spacing="10">
-                    <Grid ColumnDefinitions="*,Auto"
-                          ColumnSpacing="12">
-                        <TextBlock Text="{Binding AppName}"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" />
-                        <Button Grid.Column="1"
-                                Command="{Binding CancelCommand}"
-                                IsVisible="{Binding IsActive}"
-                                Content="Отмена" />
-                    </Grid>
-                    <ProgressBar Value="{Binding ProgressPercent}"
-                                 IsIndeterminate="{Binding IsPreparing}"
-                                 Maximum="100"
-                                 Height="4" />
-                    <Grid ColumnDefinitions="*,Auto"
-                          ColumnSpacing="12">
-                        <TextBlock Text="{Binding ProgressText}"
+                <Panel>
+                    <StackPanel IsVisible="{Binding IsPicking}" Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <TextBlock Text="{Binding AppName}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding HidePickerCommand}"
+                                    Content="Отмена" />
+                        </Grid>
+                        <TextBlock Text="Ветка загрузки"
                                    FontSize="12"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding SpeedText}"
+                        <ComboBox ItemsSource="{Binding Branches}"
+                                  SelectedItem="{Binding SelectedBranch}"
+                                  HorizontalAlignment="Stretch"
+                                  IsVisible="{Binding !IsLoadingBranches}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BranchOption">
+                                    <TextBlock Text="{Binding Display}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <ProgressBar IsIndeterminate="True"
+                                     IsVisible="{Binding IsLoadingBranches}"
+                                     Height="2" />
+                        <TextBox Text="{Binding BranchPassword}"
+                                 PasswordChar="●"
+                                 PlaceholderText="Пароль ветки"
+                                 IsVisible="{Binding NeedsPassword}" />
+                        <Button Command="{Binding BeginDownloadCommand}"
+                                Classes="accent"
+                                HorizontalAlignment="Stretch"
+                                Content="Начать загрузку" />
+                        <TextBlock Text="{Binding StatusText}"
                                    FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                        <TextBlock Text="{Binding DestinationPreview}"
+                                   FontSize="12"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+                    <StackPanel IsVisible="{Binding !IsPicking}" Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <TextBlock Text="{Binding AppName}"
+                                       FontSize="18"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <Button Grid.Column="1"
+                                    Command="{Binding CancelCommand}"
+                                    IsVisible="{Binding IsActive}"
+                                    Content="Отмена" />
+                        </Grid>
+                        <ProgressBar Value="{Binding ProgressPercent}"
+                                     IsIndeterminate="{Binding IsPreparing}"
+                                     Maximum="100"
+                                     Height="4" />
+                        <Grid ColumnDefinitions="*,Auto"
+                              ColumnSpacing="12">
+                            <TextBlock Text="{Binding ProgressText}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding SpeedText}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </Grid>
+                        <TextBlock Text="{Binding StatusText}"
+                                   FontSize="12"
+                                   TextTrimming="CharacterEllipsis"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    </Grid>
-                    <TextBlock Text="{Binding StatusText}"
-                               FontSize="12"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{Binding DestinationText}"
-                               FontSize="12"
-                               IsVisible="{Binding HasDestination}"
-                               TextTrimming="CharacterEllipsis"
-                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                </StackPanel>
+                        <TextBlock Text="{Binding DestinationText}"
+                                   FontSize="12"
+                                   IsVisible="{Binding HasDestination}"
+                                   TextTrimming="CharacterEllipsis"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                    </StackPanel>
+                </Panel>
             </Border>
         </Panel>
     </Grid>

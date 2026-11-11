@@ -18,6 +18,12 @@ public enum DownloadFinishKind
     Failed
 }
 
+public sealed record BranchInfo(string Name, bool PasswordRequired, uint BuildId, DateTime Updated);
+
+public sealed record LaunchOption(string Executable, string Arguments, string OsList);
+
+public sealed record DownloadResult(uint AppId, string AppName, string Branch, string DestinationPath, ulong TotalBytes, IReadOnlyList<LaunchOption> LaunchOptions);
+
 public sealed class SteamDownloader : IDisposable
 {
     private sealed record Depot(uint DepotId, ulong ManifestId, byte[] DepotKey);
@@ -39,11 +45,35 @@ public sealed class SteamDownloader : IDisposable
         _content = content;
     }
 
-    public async Task DownloadAsync(uint appId, string destination, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BranchInfo>> GetBranchesAsync(uint appId, CancellationToken cancellationToken)
+    {
+        var (info, _) = await GetAppInfoAsync(appId, cancellationToken);
+        var branches = new List<BranchInfo>();
+
+        foreach (var branch in info["depots"]["branches"].Children)
+        {
+            if (string.IsNullOrEmpty(branch.Name) || branch["buildid"].Value == null)
+                continue;
+
+            var updated = ulong.TryParse(branch["timeupdated"].Value, out var time) && time > 0
+                ? DateTimeOffset.FromUnixTimeSeconds((long)time).LocalDateTime
+                : default;
+
+            branches.Add(new BranchInfo(
+                branch.Name,
+                branch["pwdrequired"].Value == "1",
+                uint.TryParse(branch["buildid"].Value, out var buildId) ? buildId : 0,
+                updated));
+        }
+
+        return branches;
+    }
+
+    public async Task<DownloadResult?> DownloadAsync(uint appId, string destination, string branch, string? betaPassword, CancellationToken cancellationToken)
     {
         try
         {
-            var (files, appName) = await PrepareAsync(appId, cancellationToken);
+            var (files, appName, launchOptions) = await PrepareAsync(appId, branch, betaPassword, cancellationToken);
 
             if (files.Count == 0)
                 throw new InvalidOperationException("Нет доступных для загрузки файлов. Возможно, приложение не приобретено.");
@@ -65,7 +95,7 @@ public sealed class SteamDownloader : IDisposable
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (file.LinkTarget != null)
+                if (!string.IsNullOrEmpty(file.LinkTarget))
                 {
                     CreateLink(Path.Combine(destinationPath, file.FileName), file.LinkTarget);
                     continue;
@@ -85,7 +115,6 @@ public sealed class SteamDownloader : IDisposable
 
                 var server = servers[index % servers.Length];
                 var token = await AuthorizeAsync(appId, file.DepotId, server, cancellationToken);
-
                 await using var stream = File.Create(targetPath);
 
                 foreach (var batch in file.Chunks.Chunk(4))
@@ -96,7 +125,7 @@ public sealed class SteamDownloader : IDisposable
                         .Select(c => new byte[file.DepotKey != null ? Math.Max(c.UncompressedLength, 1) : Math.Max(c.CompressedLength, 1)])
                         .ToArray();
                     var written = await Task.WhenAll(batch.Select((chunk, i) =>
-                        DownloadChunkAsync(file.DepotId, chunk, server, buffers[i], file.DepotKey, token, cancellationToken)));
+                        DownloadChunkAsync(file.DepotId, chunk, server, servers, buffers[i], file.DepotKey, token, cancellationToken)));
 
                     for (var i = 0; i < batch.Length; i++)
                     {
@@ -121,14 +150,17 @@ public sealed class SteamDownloader : IDisposable
             }
 
             Finished?.Invoke(new DownloadFinish(appId, totalBytes, DownloadFinishKind.Completed, string.Empty));
+            return new DownloadResult(appId, appName, branch, destinationPath, totalBytes, launchOptions);
         }
         catch (OperationCanceledException)
         {
             Finished?.Invoke(new DownloadFinish(appId, 0, DownloadFinishKind.Cancelled, string.Empty));
+            return null;
         }
         catch (Exception ex)
         {
             Finished?.Invoke(new DownloadFinish(appId, 0, DownloadFinishKind.Failed, ex.Message));
+            return null;
         }
     }
 
@@ -136,11 +168,26 @@ public sealed class SteamDownloader : IDisposable
     {
     }
 
-    private async Task<(List<PreparedFile> Files, string AppName)> PrepareAsync(uint appId, CancellationToken cancellationToken)
+    private async Task<(List<PreparedFile> Files, string AppName, IReadOnlyList<LaunchOption> LaunchOptions)> PrepareAsync(uint appId, string branch, string? betaPassword, CancellationToken cancellationToken)
     {
-        var info = await GetAppInfoAsync(appId, cancellationToken);
+        var (info, accessToken) = await GetAppInfoAsync(appId, cancellationToken);
         var appName = info["common"]["name"].AsString() ?? appId.ToString();
         var currentOs = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
+
+        var branchNode = info["depots"]["branches"][branch];
+
+        if (branchNode["buildid"].Value == null)
+            throw new InvalidOperationException($"Ветка «{branch}» не найдена");
+
+        KeyValue? betaSection = null;
+
+        if (branchNode["pwdrequired"].Value == "1")
+        {
+            if (string.IsNullOrWhiteSpace(betaPassword))
+                throw new InvalidOperationException($"Ветка «{branch}» защищена паролем. Введите пароль ветки.");
+
+            betaSection = await GetPrivateBetaAsync(appId, accessToken, branch, betaPassword, cancellationToken);
+        }
 
         var depots = new List<Depot>();
 
@@ -165,10 +212,13 @@ public sealed class SteamDownloader : IDisposable
             if (!string.IsNullOrEmpty(language))
                 continue;
 
-            var manifestNode = depot["manifests"]["public"];
+            var manifestNode = depot["manifests"][branch];
             var manifestValue = string.IsNullOrEmpty(manifestNode.Value) ? manifestNode["gid"].Value : manifestNode.Value;
 
             if (!ulong.TryParse(manifestValue, out var manifestId) || manifestId == 0)
+                manifestValue = betaSection?[depotId.ToString()]["manifests"][branch]["gid"].Value;
+
+            if (!ulong.TryParse(manifestValue, out manifestId) || manifestId == 0)
                 continue;
 
             try
@@ -191,7 +241,7 @@ public sealed class SteamDownloader : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
 
             var server = servers[index % servers.Length];
-            var manifest = await DownloadManifestAsync(depot, server, appId, servers);
+            var manifest = await DownloadManifestAsync(depot, server, appId, branch, servers);
 
             if (manifest?.Files == null)
                 continue;
@@ -205,7 +255,42 @@ public sealed class SteamDownloader : IDisposable
                 f.Chunks)));
         }
 
-        return (files, appName);
+        return (files, appName, GetLaunchOptions(info));
+    }
+
+    private async Task<KeyValue> GetPrivateBetaAsync(uint appId, ulong accessToken, string branch, string password, CancellationToken cancellationToken)
+    {
+        var check = await _apps.CheckAppBetaPassword(appId, password);
+
+        if (check.Result != EResult.OK || !check.BetaPasswords.TryGetValue(branch, out var key))
+            throw new InvalidOperationException("Steam не принял пароль ветки");
+
+        var beta = await _apps.PICSGetPrivateBeta(appId, accessToken, branch, key);
+
+        if (beta.Result != EResult.OK || beta.DepotSection.Children.Count == 0)
+            throw new InvalidOperationException("Steam отклонил доступ к закрытой ветке");
+
+        return beta.DepotSection;
+    }
+
+    private static List<LaunchOption> GetLaunchOptions(KeyValue info)
+    {
+        var options = new List<LaunchOption>();
+
+        foreach (var entry in info["config"]["launch"].Children)
+        {
+            var executable = entry["executable"].Value;
+
+            if (string.IsNullOrWhiteSpace(executable))
+                continue;
+
+            options.Add(new LaunchOption(
+                executable,
+                entry["arguments"].Value ?? string.Empty,
+                entry["config"]["oslist"].Value ?? string.Empty));
+        }
+
+        return options;
     }
 
     private async Task<Server[]> GetServersAsync(CancellationToken cancellationToken)
@@ -225,7 +310,7 @@ public sealed class SteamDownloader : IDisposable
         return usable;
     }
 
-    private async Task<KeyValue> GetAppInfoAsync(uint appId, CancellationToken cancellationToken)
+    private async Task<(KeyValue Info, ulong AccessToken)> GetAppInfoAsync(uint appId, CancellationToken cancellationToken)
     {
         ulong token = 0;
 
@@ -247,16 +332,16 @@ public sealed class SteamDownloader : IDisposable
         var app = result.Results?.SelectMany(r => r.Apps.Values).FirstOrDefault(a => a.ID == appId)
             ?? throw new InvalidOperationException($"Приложение {appId} не найдено в Steam");
 
-        return app.KeyValues;
+        return (app.KeyValues, token);
     }
 
-    private async Task<DepotManifest> DownloadManifestAsync(Depot depot, Server server, uint appId, Server[] servers)
+    private async Task<DepotManifest> DownloadManifestAsync(Depot depot, Server server, uint appId, string branch, Server[] servers)
     {
         ulong requestCode = 0;
 
         try
         {
-            requestCode = await _content.GetManifestRequestCode(depot.DepotId, appId, depot.ManifestId, "public", null);
+            requestCode = await _content.GetManifestRequestCode(depot.DepotId, appId, depot.ManifestId, branch, null);
         }
         catch
         {
@@ -277,17 +362,27 @@ public sealed class SteamDownloader : IDisposable
         }
     }
 
-    private async Task<string> AuthorizeAsync(uint appId, uint depotId, Server server, CancellationToken cancellationToken)
+    private async Task<string?> AuthorizeAsync(uint appId, uint depotId, Server server, CancellationToken cancellationToken)
     {
-        var auth = await _content.GetCDNAuthToken(appId, depotId, server.Host!);
+        try
+        {
+            var auth = await _content.GetCDNAuthToken(appId, depotId, server.Host!);
 
-        if (auth.Result != EResult.OK)
-            throw new InvalidOperationException($"Steam отказал в доступе к депо {depotId} ({auth.Result})");
+            if (auth.Result == EResult.OK)
+                return auth.Token;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+        }
 
-        return auth.Token;
+        return null;
     }
 
-    private async Task<int> DownloadChunkAsync(uint depotId, DepotManifest.ChunkData chunk, Server server, byte[] buffer, byte[] depotKey, string cdnAuthToken, CancellationToken cancellationToken)
+    private async Task<int> DownloadChunkAsync(uint depotId, DepotManifest.ChunkData chunk, Server server, Server[] servers, byte[] buffer, byte[] depotKey, string? cdnAuthToken, CancellationToken cancellationToken)
     {
         using var client = new Client(_client);
 
@@ -299,6 +394,7 @@ public sealed class SteamDownloader : IDisposable
             }
             catch when (attempt < 2)
             {
+                server = servers[(Array.IndexOf(servers, server) + 1) % servers.Length];
             }
         }
     }
