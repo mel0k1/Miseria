@@ -1,0 +1,76 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Miseria.App.ViewModels"
+        x:Class="Miseria.App.Views.LogonWindow"
+        x:DataType="vm:LogonViewModel"
+        Title="Miseria"
+        Width="440"
+        Height="600"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False"
+        Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+    <Panel>
+        <Border Width="360"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="32,28">
+            <StackPanel Spacing="14">
+                <TextBlock Text="Miseria"
+                           FontSize="26"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="Вход в аккаунт Steam"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBox Text="{Binding Username}"
+                         PlaceholderText="Логин" />
+                <TextBox Text="{Binding Password}"
+                         PasswordChar="●"
+                         RevealPassword="True"
+                         PlaceholderText="Пароль" />
+                <Button Content="Войти"
+                        Command="{Binding LogOnCommand}"
+                        Classes="accent"
+                        HorizontalAlignment="Stretch" />
+                <ProgressBar IsIndeterminate="True"
+                             IsVisible="{Binding IsBusy}"
+                             Height="2" />
+                <TextBlock Text="{Binding StatusText}"
+                           IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="{Binding ErrorMessage}"
+                           IsVisible="{Binding ErrorMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                <Border IsVisible="{Binding IsGuardRequested}"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16,14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Steam Guard"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding GuardMessage}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBox Text="{Binding GuardCode}"
+                                 PlaceholderText="Код" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Подтвердить"
+                                    Command="{Binding SubmitGuardCommand}"
+                                    Classes="accent" />
+                            <Button Content="Отмена"
+                                    Command="{Binding CancelGuardCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Border>
+    </Panel>
+</Window>

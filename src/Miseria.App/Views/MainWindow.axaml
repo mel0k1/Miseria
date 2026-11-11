@@ -1,0 +1,41 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:vm="using:Miseria.App.ViewModels"
+        xmlns:views="using:Miseria.App.Views"
+        x:Class="Miseria.App.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="Miseria"
+        Width="980"
+        Height="640"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
+    <Window.DataTemplates>
+        <DataTemplate DataType="vm:HomeViewModel">
+            <views:HomeView />
+        </DataTemplate>
+        <DataTemplate DataType="vm:SettingsViewModel">
+            <views:SettingsView />
+        </DataTemplate>
+    </Window.DataTemplates>
+    <ui:FANavigationView x:Name="Nav"
+                         PaneDisplayMode="Left"
+                         OpenPaneLength="220"
+                         IsBackButtonVisible="False"
+                         IsPaneToggleButtonVisible="False"
+                         SelectionChanged="OnNavSelectionChanged">
+        <ui:FANavigationView.MenuItems>
+            <ui:FANavigationViewItem Tag="home" Content="Главная">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Home" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="settings" Content="Настройки">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Settings" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+        </ui:FANavigationView.MenuItems>
+        <ContentControl Content="{Binding CurrentPage}" />
+    </ui:FANavigationView>
+</Window>

@@ -1,0 +1,15 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    x:Class="Miseria.App.Theming.Kiwi">
+    <Color x:Key="SolidBackgroundFillColorBase">#241C14</Color>
+    <Color x:Key="SolidBackgroundFillColorSecondary">#1E1710</Color>
+    <Color x:Key="SolidBackgroundFillColorTertiary">#2D2419</Color>
+    <Color x:Key="SolidBackgroundFillColorQuarternary">#332A1E</Color>
+    <Color x:Key="LayerFillColorDefault">#662A2118</Color>
+
+    <SolidColorBrush x:Key="SolidBackgroundFillColorBaseBrush" Color="{StaticResource SolidBackgroundFillColorBase}" />
+    <SolidColorBrush x:Key="SolidBackgroundFillColorSecondaryBrush" Color="{StaticResource SolidBackgroundFillColorSecondary}" />
+    <SolidColorBrush x:Key="SolidBackgroundFillColorTertiaryBrush" Color="{StaticResource SolidBackgroundFillColorTertiary}" />
+    <SolidColorBrush x:Key="SolidBackgroundFillColorQuarternaryBrush" Color="{StaticResource SolidBackgroundFillColorQuarternary}" />
+    <SolidColorBrush x:Key="LayerFillColorDefaultBrush" Color="{StaticResource LayerFillColorDefault}" />
+</ResourceDictionary>

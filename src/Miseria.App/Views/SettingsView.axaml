@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <ScrollViewer>
+        <StackPanel Margin="36,32"
+                    Spacing="18"
+                    MaxWidth="560"
+                    HorizontalAlignment="Left">
+            <TextBlock Text="Настройки"
+                       FontSize="24"
+                       FontWeight="SemiBold" />
+            <TextBlock Text="Тема оформления"
+                       FontSize="16"
+                       FontWeight="SemiBold" />
+            <ListBox ItemsSource="{Binding Themes}"
+                     SelectedItem="{Binding SelectedTheme, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ThemeOption">
+                        <StackPanel Margin="4" Spacing="2">
+                            <TextBlock Text="{Binding Title}"
+                                       FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Description}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="Miseria работает на SteamKit2 и Avalonia. Приложение не связано с Valve."
+                       FontSize="12"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
