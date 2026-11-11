@@ -19,6 +19,7 @@ public partial class LogonViewModel : ObservableObject
     private string _password = string.Empty;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(LogOnCommand))]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -46,9 +47,24 @@ public partial class LogonViewModel : ObservableObject
     }
 
     private bool CanLogOn() =>
-        !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password);
+        !IsBusy && !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password);
 
     private bool CanSubmitGuard() => !string.IsNullOrWhiteSpace(GuardCode);
+
+    public async Task BeginStoredLogon(StoredSession session)
+    {
+        ErrorMessage = null;
+        IsBusy = true;
+        StatusText = "Выполняется автоматический вход";
+        try
+        {
+            await _session.LogOnWithTokenAsync(session);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanLogOn))]
     private async Task LogOnAsync(CancellationToken cancellationToken)
@@ -123,6 +139,7 @@ public partial class LogonViewModel : ObservableObject
             {
                 LogonFailureReason.BadCredentials => "Неверный логин или пароль",
                 LogonFailureReason.BadGuardCode => "Неверный код Steam Guard",
+                LogonFailureReason.InvalidSession => "Сохранённая сессия недействительна, войдите заново",
                 LogonFailureReason.RateLimited => "Слишком много попыток входа. Повторите позже",
                 LogonFailureReason.ConnectionFailed => "Не удалось подключиться к Steam",
                 LogonFailureReason.Timeout => "Steam не ответил вовремя",

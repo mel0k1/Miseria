@@ -4,6 +4,7 @@ public enum LogonFailureReason
 {
     BadCredentials,
     BadGuardCode,
+    InvalidSession,
     RateLimited,
     ConnectionFailed,
     Timeout,

@@ -10,29 +10,42 @@ public sealed class SteamSession : IDisposable
     private readonly SteamClient _client;
     private readonly CallbackManager _manager;
     private readonly SteamUser _user;
+    private readonly SteamFriends _friends;
+    private readonly SessionStore _store;
     private readonly CancellationTokenSource _pumpCts = new();
+    private readonly HashSet<ulong> _friendIds = [];
 
     private TaskCompletionSource _connected = NewCompletion();
     private string? _guardData;
     private string? _accountName;
+    private StoredSession? _activeSession;
+    private bool _tokenLogon;
 
     public event Action<SessionState>? StateChanged;
     public event Action<GuardPrompt, TaskCompletionSource<string?>>? GuardRequested;
     public event Action<AccountSnapshot>? LoggedIn;
     public event Action<LogonFailure>? LogonFailed;
     public event Action? LoggedOut;
+    public event Action<IReadOnlyList<ulong>>? FriendsLoaded;
+    public event Action<FriendSnapshot>? FriendUpdated;
 
     public SessionState State { get; private set; } = SessionState.Disconnected;
 
-    public SteamSession()
+    public SteamSession(SessionStore store)
     {
+        _store = store;
+        _guardData = store.TryLoad()?.GuardData;
+
         _client = new SteamClient();
         _manager = new CallbackManager(_client);
         _user = _client.GetHandler<SteamUser>()!;
+        _friends = _client.GetHandler<SteamFriends>()!;
 
         _manager.Subscribe<SteamClient.ConnectedCallback>(_ => _connected.TrySetResult());
         _manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
         _manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
+        _manager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
+        _manager.Subscribe<SteamFriends.PersonaStateCallback>(OnPersonaState);
 
         _ = Task.Run(PumpLoop);
     }
@@ -42,19 +55,12 @@ public sealed class SteamSession : IDisposable
         if (State == SessionState.Online)
             throw new InvalidOperationException("Session is already online.");
 
+        _tokenLogon = false;
         SetState(SessionState.Connecting);
 
         try
         {
-            if (!_client.IsConnected)
-            {
-                _connected = NewCompletion();
-                _client.Connect();
-
-                using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                timeout.CancelAfter(TimeSpan.FromSeconds(30));
-                await _connected.Task.WaitAsync(timeout.Token);
-            }
+            await EnsureConnectedAsync(cancellationToken);
 
             SetState(SessionState.Authenticating);
 
@@ -62,7 +68,7 @@ public sealed class SteamSession : IDisposable
             {
                 Username = request.Username,
                 Password = request.Password,
-                IsPersistentSession = false,
+                IsPersistentSession = true,
                 GuardData = _guardData,
                 Authenticator = new InteractiveAuthenticator(AskGuard)
             });
@@ -73,6 +79,8 @@ public sealed class SteamSession : IDisposable
 
             if (poll.NewGuardData != null)
                 _guardData = poll.NewGuardData;
+
+            _activeSession = new StoredSession(poll.AccountName, 0, poll.RefreshToken, _guardData, DateTimeOffset.UtcNow);
 
             _user.LogOn(new SteamUser.LogOnDetails
             {
@@ -103,11 +111,48 @@ public sealed class SteamSession : IDisposable
         }
     }
 
+    public async Task LogOnWithTokenAsync(StoredSession session, CancellationToken cancellationToken = default)
+    {
+        if (State == SessionState.Online)
+            throw new InvalidOperationException("Session is already online.");
+
+        _tokenLogon = true;
+        _activeSession = session;
+        SetState(SessionState.Connecting);
+
+        try
+        {
+            await EnsureConnectedAsync(cancellationToken);
+
+            SetState(SessionState.Authenticating);
+
+            _accountName = session.AccountName;
+
+            _user.LogOn(new SteamUser.LogOnDetails
+            {
+                Username = session.AccountName,
+                AccessToken = session.RefreshToken,
+                ShouldRememberPassword = false
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            SetState(SessionState.Disconnected);
+            LogonFailed?.Invoke(new LogonFailure(LogonFailureReason.Cancelled, string.Empty));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or SocketException or TimeoutException)
+        {
+            SetState(SessionState.Disconnected);
+            LogonFailed?.Invoke(new LogonFailure(LogonFailureReason.ConnectionFailed, ex.Message));
+        }
+    }
+
     public void LogOff()
     {
         if (State != SessionState.Online)
             return;
 
+        _store.Delete();
         _user.LogOff();
     }
 
@@ -116,6 +161,19 @@ public sealed class SteamSession : IDisposable
         _pumpCts.Cancel();
         _client.Disconnect();
         _pumpCts.Dispose();
+    }
+
+    private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
+    {
+        if (_client.IsConnected)
+            return;
+
+        _connected = NewCompletion();
+        _client.Connect();
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        await _connected.Task.WaitAsync(timeout.Token);
     }
 
     private Task<string?> AskGuard(GuardPrompt prompt)
@@ -129,20 +187,95 @@ public sealed class SteamSession : IDisposable
     {
         if (callback.Result != EResult.OK)
         {
+            var invalidSession = _tokenLogon && callback.Result is EResult.InvalidPassword or EResult.Expired or EResult.AccessDenied;
+
+            if (invalidSession)
+                _store.Delete();
+
             SetState(SessionState.Disconnected);
-            LogonFailed?.Invoke(new LogonFailure(Map(callback.Result), callback.Result.ToString()));
+            LogonFailed?.Invoke(new LogonFailure(
+                invalidSession ? LogonFailureReason.InvalidSession : Map(callback.Result),
+                callback.Result.ToString()));
             return;
         }
 
         SetState(SessionState.Online);
+
+        var steamId = callback.ClientSteamID?.ConvertToUInt64() ?? 0;
+
+        if (_activeSession != null)
+            _store.Save(_activeSession with { SteamId = steamId, GuardData = _guardData });
+
+        _friends.SetPersonaState(EPersonaState.Online);
+
         LoggedIn?.Invoke(new AccountSnapshot(
             _accountName ?? string.Empty,
-            callback.ClientSteamID?.ConvertToUInt64() ?? 0,
+            steamId,
             callback.IPCountryCode));
+    }
+
+    private void OnFriendsList(SteamFriends.FriendsListCallback callback)
+    {
+        if (callback.Incremental)
+            return;
+
+        _friendIds.Clear();
+
+        foreach (var friend in callback.FriendList)
+        {
+            if (friend.Relationship == EFriendRelationship.Friend && friend.SteamID.IsIndividualAccount)
+                _friendIds.Add(friend.SteamID);
+        }
+
+        FriendsLoaded?.Invoke(_friendIds.ToArray());
+    }
+
+    private void OnPersonaState(SteamFriends.PersonaStateCallback callback)
+    {
+        if (!_friendIds.Contains(callback.FriendID))
+            return;
+
+        FriendUpdated?.Invoke(BuildFriend(callback.FriendID));
+    }
+
+    private FriendSnapshot BuildFriend(SteamID id)
+    {
+        var state = _friends.GetFriendPersonaState(id);
+        var game = _friends.GetFriendGamePlayed(id);
+        var gameName = _friends.GetFriendGamePlayedName(id);
+        var inGame = game.ToUInt64() != 0 || !string.IsNullOrWhiteSpace(gameName);
+
+        return new FriendSnapshot(
+            id,
+            _friends.GetFriendPersonaName(id) ?? string.Empty,
+            inGame ? FriendPresence.InGame : MapPresence(state),
+            ToAvatarHash(_friends.GetFriendAvatar(id)),
+            string.IsNullOrWhiteSpace(gameName) ? null : gameName);
+    }
+
+    private static FriendPresence MapPresence(EPersonaState state) => state switch
+    {
+        EPersonaState.Online => FriendPresence.Online,
+        EPersonaState.Busy => FriendPresence.Busy,
+        EPersonaState.Away => FriendPresence.Away,
+        EPersonaState.Snooze => FriendPresence.Snooze,
+        EPersonaState.LookingToTrade => FriendPresence.LookingToTrade,
+        EPersonaState.LookingToPlay => FriendPresence.LookingToPlay,
+        _ => FriendPresence.Offline
+    };
+
+    private static string? ToAvatarHash(byte[]? hash)
+    {
+        if (hash == null || hash.Length == 0 || hash.All(b => b == 0))
+            return null;
+
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
+        _friendIds.Clear();
+
         if (State == SessionState.Online)
         {
             SetState(SessionState.Disconnected);

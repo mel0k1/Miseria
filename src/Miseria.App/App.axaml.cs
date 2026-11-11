@@ -27,6 +27,7 @@ public class App : Application
         var collection = new ServiceCollection();
 
         collection.AddSingleton<SettingsStore>();
+        collection.AddSingleton<SessionStore>();
         collection.AddSingleton<SteamSession>();
         collection.AddSingleton<ThemeService>();
         collection.AddSingleton<LogonViewModel>();
@@ -44,6 +45,10 @@ public class App : Application
         {
             _services.GetRequiredService<ThemeService>().ApplySavedTheme();
             ShowLogon();
+
+            var stored = _services.GetRequiredService<SessionStore>().TryLoad();
+            if (stored != null)
+                _ = _services.GetRequiredService<LogonViewModel>().BeginStoredLogon(stored);
         }
 
         base.OnFrameworkInitializationCompleted();
