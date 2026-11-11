@@ -29,9 +29,11 @@ public class App : Application
         collection.AddSingleton<SettingsStore>();
         collection.AddSingleton<SessionStore>();
         collection.AddSingleton<SteamSession>();
+        collection.AddSingleton<AvatarCache>();
         collection.AddSingleton<ThemeService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
+        collection.AddSingleton<FriendsViewModel>();
         collection.AddSingleton<HomeViewModel>();
         collection.AddSingleton<SettingsViewModel>();
 

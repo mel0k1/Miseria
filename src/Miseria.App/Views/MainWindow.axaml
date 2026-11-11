@@ -11,6 +11,9 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource SolidBackgroundFillColorBaseBrush}">
     <Window.DataTemplates>
+        <DataTemplate DataType="vm:FriendsViewModel">
+            <views:FriendsView />
+        </DataTemplate>
         <DataTemplate DataType="vm:HomeViewModel">
             <views:HomeView />
         </DataTemplate>
@@ -25,6 +28,11 @@
                          IsPaneToggleButtonVisible="False"
                          SelectionChanged="OnNavSelectionChanged">
         <ui:FANavigationView.MenuItems>
+            <ui:FANavigationViewItem Tag="friends" Content="Друзья">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="People" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="home" Content="Главная">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Home" />

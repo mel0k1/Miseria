@@ -5,6 +5,8 @@ namespace Miseria.App.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
+    public FriendsViewModel Friends { get; }
+
     public HomeViewModel Home { get; }
 
     public SettingsViewModel Settings { get; }
@@ -12,11 +14,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ObservableObject? _currentPage;
 
-    public MainViewModel(HomeViewModel home, SettingsViewModel settings)
+    public MainViewModel(FriendsViewModel friends, HomeViewModel home, SettingsViewModel settings)
     {
+        Friends = friends;
         Home = home;
         Settings = settings;
-        _currentPage = home;
+        _currentPage = friends;
     }
 
     public void Initialize(AccountSnapshot account) => Home.Initialize(account);
@@ -26,7 +29,8 @@ public partial class MainViewModel : ObservableObject
         CurrentPage = tag switch
         {
             "settings" => Settings,
-            _ => Home
+            "home" => Home,
+            _ => Friends
         };
     }
 }
