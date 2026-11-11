@@ -12,17 +12,23 @@ Early development. What works now:
 
 - Password logon through the SteamKit2 authentication API
 - Steam Guard prompts (email code, authenticator code) shown in the logon window
-- Session status and logoff
+- Friends list with live presence: online, away, snooze, looking to trade or play, in-game with the game name, avatars cached on disk
+- Automatic re-logon between launches: the refresh token is saved and reused, no password prompt until the session expires
+- Session status and logoff (logoff deletes the stored session)
 - Four themes: Light, Dark, Crimson and Kiwi
 - Theme selection persisted to disk
 
-The first logon on a new device may ask for a Steam Guard code. Subsequent logons reuse the stored guard data for the current session.
+The first logon on a new device may ask for a Steam Guard code. The refresh token and guard data are stored unencrypted in `~/.config/Miseria/session.json` (`%APPDATA%\Miseria` on Windows) with file permissions limited to the current user on Linux and macOS. Deleting the file or logging out forces the password prompt again.
 
 ## Screenshots
 
-| Light | Kiwi |
+| Logon (Light) | Logon (Kiwi) |
 | --- | --- |
 | ![Logon window in the Light theme](docs/screenshots/logon-light.png) | ![Logon window in the Kiwi theme](docs/screenshots/logon-kiwi.png) |
+
+| Friends (Dark) | Friends (Kiwi) |
+| --- | --- |
+| ![Friends list in the Dark theme](docs/screenshots/friends-dark.png) | ![Friends list in the Kiwi theme](docs/screenshots/friends-kiwi.png) |
 
 ## Build
 
@@ -49,18 +55,16 @@ The Kiwi palette borrows from both the fruit (green accent) and the bird (brown 
 
 ```
 Miseria.slnx
-src/Miseria.Core    SteamKit2 session: connect, authenticate, guard prompts, logoff
+src/Miseria.Core    SteamKit2 session: connect, authenticate, guard prompts, friends feed, logoff
 src/Miseria.App     Avalonia UI: MVVM view models, FluentAvalonia shell, theming
 ```
 
-`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`.
+`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`.
 
 ## Roadmap
 
-- Friends list with live statuses
 - Owned apps and packages through licenses and PICS
 - Downloads via SteamContent
-- Session persistence with refresh tokens
 - Family View awareness
 
 ## Notes
