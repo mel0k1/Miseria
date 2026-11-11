@@ -14,7 +14,10 @@ Early development. What works now:
 - Steam Guard prompts (email code, authenticator code) shown in the logon window
 - Friends list with live presence: online, away, snooze, looking to trade or play, in-game with the game name, avatars cached on disk
 - Library of owned apps: licenses are resolved to app ids through PICS product info, names, types and icons are shown with search
-- Downloads through SteamContent: depots are resolved from app info, current manifests and depot keys are fetched, chunks are downloaded from the Steam CDN in parallel, decrypted and verified, with progress, speed and cancel
+- Downloads through SteamContent: depots are resolved from app info, manifests and depot keys are fetched, chunks are downloaded from the Steam CDN in parallel, decrypted and verified, with progress, speed and cancel
+- Branch picker for downloads: every depot branch is listed with its build id, password-protected beta branches unlock through the private beta PICS request
+- Family View awareness: locked accounts are detected at logon and the session can be unlocked with the Family View PIN through Steam's Parental service
+- Install tracking and game launch: finished downloads are registered as installed apps and get a Play button that starts the executable from the app's launch config (Wine is used automatically for Windows games on Linux)
 - Automatic re-logon between launches: the refresh token is saved and reused, no password prompt until the session expires
 - Session status and logoff (logoff deletes the stored session)
 - Four themes: Light, Dark, Crimson and Kiwi
@@ -34,7 +37,7 @@ The first logon on a new device may ask for a Steam Guard code. The refresh toke
 
 | Library (Dark) | Downloads (Dark) |
 | --- | --- |
-| ![Library with app icons](docs/screenshots/library-dark.png) | ![Download progress](docs/screenshots/downloads-dark.png) |
+| ![Library with app icons and play buttons](docs/screenshots/library-dark.png) | ![Download branch picker](docs/screenshots/downloads-dark.png) |
 
 ## Build
 
@@ -65,13 +68,13 @@ src/Miseria.Core    SteamKit2 session: connect, authenticate, guard prompts, fri
 src/Miseria.App     Avalonia UI: MVVM view models, FluentAvalonia shell, theming
 ```
 
-`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`, `LibraryLoaded`, and `SteamDownloader` with `Started`, `Progress`, `Finished`.
+`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`, `LibraryLoaded`, `SteamDownloader` with `GetBranchesAsync` / `DownloadAsync` and `Started`, `Progress`, `Finished` events, and `UnlockFamilyViewAsync` for the Family View PIN.
 
-Downloads are written to `~/Miseria/games/<appid>` and resumed by file size when restarted.
+Downloads are written to `~/Miseria/games/<appid>`, resumed by file size when restarted and registered in `%APPDATA%\Miseria\installs.json`, which drives the Play buttons in the library.
 
 ## Roadmap
 
-- Family View awareness
+- Update checks for installed games: diff manifests and redownload changed files only
 
 ## Notes
 
