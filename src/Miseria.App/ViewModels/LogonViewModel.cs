@@ -32,6 +32,9 @@ public partial class LogonViewModel : ObservableObject
     private bool _isGuardRequested;
 
     [ObservableProperty]
+    private bool _showPassword;
+
+    [ObservableProperty]
     private string _guardMessage = string.Empty;
 
     [ObservableProperty]

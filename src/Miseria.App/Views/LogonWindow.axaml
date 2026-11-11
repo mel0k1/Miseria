@@ -28,8 +28,10 @@
                          PlaceholderText="Логин" />
                 <TextBox Text="{Binding Password}"
                          PasswordChar="●"
-                         RevealPassword="True"
+                         RevealPassword="{Binding ShowPassword}"
                          PlaceholderText="Пароль" />
+                <CheckBox Content="Показать пароль"
+                          IsChecked="{Binding ShowPassword}" />
                 <Button Content="Войти"
                         Command="{Binding LogOnCommand}"
                         Classes="accent"
