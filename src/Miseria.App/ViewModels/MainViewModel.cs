@@ -9,15 +9,18 @@ public partial class MainViewModel : ObservableObject
 
     public HomeViewModel Home { get; }
 
+    public LibraryViewModel Library { get; }
+
     public SettingsViewModel Settings { get; }
 
     [ObservableProperty]
     private ObservableObject? _currentPage;
 
-    public MainViewModel(FriendsViewModel friends, HomeViewModel home, SettingsViewModel settings)
+    public MainViewModel(FriendsViewModel friends, HomeViewModel home, LibraryViewModel library, SettingsViewModel settings)
     {
         Friends = friends;
         Home = home;
+        Library = library;
         Settings = settings;
         _currentPage = friends;
     }
@@ -30,6 +33,7 @@ public partial class MainViewModel : ObservableObject
         {
             "settings" => Settings,
             "home" => Home,
+            "library" => Library,
             _ => Friends
         };
     }

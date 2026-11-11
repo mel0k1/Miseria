@@ -11,9 +11,11 @@ public sealed class SteamSession : IDisposable
     private readonly CallbackManager _manager;
     private readonly SteamUser _user;
     private readonly SteamFriends _friends;
+    private readonly SteamApps _apps;
     private readonly SessionStore _store;
     private readonly CancellationTokenSource _pumpCts = new();
     private readonly HashSet<ulong> _friendIds = [];
+    private int _libraryBusy;
 
     private TaskCompletionSource _connected = NewCompletion();
     private string? _guardData;
@@ -28,6 +30,7 @@ public sealed class SteamSession : IDisposable
     public event Action? LoggedOut;
     public event Action<IReadOnlyList<ulong>>? FriendsLoaded;
     public event Action<FriendSnapshot>? FriendUpdated;
+    public event Action<IReadOnlyList<AppSnapshot>>? LibraryLoaded;
 
     public SessionState State { get; private set; } = SessionState.Disconnected;
 
@@ -40,12 +43,14 @@ public sealed class SteamSession : IDisposable
         _manager = new CallbackManager(_client);
         _user = _client.GetHandler<SteamUser>()!;
         _friends = _client.GetHandler<SteamFriends>()!;
+        _apps = _client.GetHandler<SteamApps>()!;
 
         _manager.Subscribe<SteamClient.ConnectedCallback>(_ => _connected.TrySetResult());
         _manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
         _manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
         _manager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
         _manager.Subscribe<SteamFriends.PersonaStateCallback>(OnPersonaState);
+        _manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
         _ = Task.Run(PumpLoop);
     }
@@ -270,6 +275,81 @@ public sealed class SteamSession : IDisposable
             return null;
 
         return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+
+    private void OnLicenseList(SteamApps.LicenseListCallback callback)
+    {
+        if (callback.LicenseList.Count == 0)
+            return;
+
+        _ = Task.Run(() => BuildLibraryAsync(callback.LicenseList));
+    }
+
+    private async Task BuildLibraryAsync(IReadOnlyList<SteamApps.LicenseListCallback.License> licenses)
+    {
+        if (Interlocked.CompareExchange(ref _libraryBusy, 1, 0) != 0)
+            return;
+
+        try
+        {
+            var appIds = new HashSet<uint>();
+
+            foreach (var chunk in licenses.Chunk(50))
+            {
+                var result = await _apps.PICSGetProductInfo(
+                    [],
+                    chunk.Select(l => new SteamApps.PICSRequest(l.PackageID, l.AccessToken)));
+
+                if (result.Results == null)
+                    continue;
+
+                foreach (var package in result.Results.SelectMany(r => r.Packages.Values))
+                {
+                    foreach (var child in package.KeyValues["appids"].Children)
+                    {
+                        if (uint.TryParse(child.Value, out var appId) && appId != 0)
+                            appIds.Add(appId);
+                    }
+                }
+            }
+
+            var snapshots = new List<AppSnapshot>();
+
+            foreach (var chunk in appIds.Chunk(60))
+            {
+                var result = await _apps.PICSGetProductInfo(
+                    chunk.Select(id => new SteamApps.PICSRequest(id)),
+                    []);
+
+                if (result.Results == null)
+                    continue;
+
+                foreach (var app in result.Results.SelectMany(r => r.Apps.Values))
+                {
+                    var name = app.KeyValues["common"]["name"].AsString();
+
+                    if (string.IsNullOrWhiteSpace(name))
+                        continue;
+
+                    var type = app.KeyValues["common"]["type"].AsString() ?? string.Empty;
+                    snapshots.Add(new AppSnapshot(app.ID, name, type.ToLowerInvariant()));
+                }
+            }
+
+            if (State == SessionState.Disconnected)
+                return;
+
+            LibraryLoaded?.Invoke(snapshots
+                .OrderBy(a => a.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray());
+        }
+        catch
+        {
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _libraryBusy, 0);
+        }
     }
 
     private void OnDisconnected(SteamClient.DisconnectedCallback callback)

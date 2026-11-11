@@ -35,6 +35,7 @@ public class App : Application
         collection.AddSingleton<MainViewModel>();
         collection.AddSingleton<FriendsViewModel>();
         collection.AddSingleton<HomeViewModel>();
+        collection.AddSingleton<LibraryViewModel>();
         collection.AddSingleton<SettingsViewModel>();
 
         _services = collection.BuildServiceProvider();

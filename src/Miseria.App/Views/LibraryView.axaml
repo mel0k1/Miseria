@@ -1,0 +1,85 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.LibraryView"
+             x:DataType="vm:LibraryViewModel">
+    <Grid RowDefinitions="Auto,*"
+          RowSpacing="16"
+          Margin="28,24,28,16">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,280"
+              ColumnSpacing="16">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Библиотека"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding CountText}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <TextBox Grid.Column="1"
+                     Text="{Binding SearchText}"
+                     PlaceholderText="Поиск в библиотеке"
+                     VerticalAlignment="Center" />
+        </Grid>
+        <Panel Grid.Row="1">
+            <ListBox ItemsSource="{Binding Visible}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Grid ColumnDefinitions="44,*"
+                              ColumnSpacing="12"
+                              Margin="0,4">
+                            <Border Width="36"
+                                    Height="36"
+                                    CornerRadius="4"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource ControlFillColorDefaultBrush}">
+                                <TextBlock Text="{Binding Initial}"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Border>
+                            <StackPanel Grid.Column="1"
+                                        VerticalAlignment="Center"
+                                        Spacing="2">
+                                <TextBlock Text="{Binding Name}"
+                                           FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding TypeText}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <StackPanel IsVisible="{Binding !HasList}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="10">
+                <ProgressBar IsIndeterminate="True"
+                             Width="200"
+                             Height="2" />
+                <TextBlock Text="Получение библиотеки…"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <StackPanel IsVisible="{Binding HasList}"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <StackPanel IsVisible="{Binding !HasApps}">
+                    <TextBlock IsVisible="{Binding SearchActive}"
+                               Text="Ничего не найдено"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <TextBlock IsVisible="{Binding !SearchActive}"
+                               Text="В библиотеке пока пусто"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </Panel>
+    </Grid>
+</UserControl>
