@@ -41,6 +41,20 @@ public partial class LogonViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(SubmitGuardCommand))]
     private string _guardCode = string.Empty;
 
+    [ObservableProperty]
+    private bool _isFamilyViewRequested;
+
+    [ObservableProperty]
+    private string _familyViewPin = string.Empty;
+
+    [ObservableProperty]
+    private string? _familyViewError;
+
+    [ObservableProperty]
+    private bool _familyViewBusy;
+
+    public event Action? ProceedRequested;
+
     public LogonViewModel(SteamSession session)
     {
         _session = session;
@@ -102,6 +116,46 @@ public partial class LogonViewModel : ObservableObject
         IsGuardRequested = false;
         GuardCode = string.Empty;
         _guardCompletion?.TrySetResult(null);
+    }
+
+    public void RequestFamilyView() => Dispatcher.UIThread.Post(() => IsFamilyViewRequested = true);
+
+    [RelayCommand]
+    private async Task SubmitFamilyViewAsync()
+    {
+        if (FamilyViewBusy || string.IsNullOrWhiteSpace(FamilyViewPin))
+            return;
+
+        FamilyViewBusy = true;
+        FamilyViewError = null;
+
+        try
+        {
+            if (await _session.UnlockFamilyViewAsync(FamilyViewPin.Trim()))
+            {
+                IsFamilyViewRequested = false;
+                ProceedRequested?.Invoke();
+            }
+            else
+            {
+                FamilyViewError = "Steam не принял PIN";
+            }
+        }
+        catch
+        {
+            FamilyViewError = "Не удалось связаться с Steam";
+        }
+        finally
+        {
+            FamilyViewBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private void SkipFamilyView()
+    {
+        IsFamilyViewRequested = false;
+        ProceedRequested?.Invoke();
     }
 
     private void OnStateChanged(SessionState state)

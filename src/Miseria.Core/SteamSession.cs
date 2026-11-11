@@ -2,6 +2,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using SteamKit2;
 using SteamKit2.Authentication;
+using SteamKit2.Internal;
 
 namespace Miseria.Core;
 
@@ -13,6 +14,7 @@ public sealed class SteamSession : IDisposable
     private readonly SteamFriends _friends;
     private readonly SteamApps _apps;
     private readonly SteamContent _content;
+    private readonly Parental _parental;
     private readonly SessionStore _store;
     private readonly CancellationTokenSource _pumpCts = new();
     private readonly HashSet<ulong> _friendIds = [];
@@ -46,6 +48,7 @@ public sealed class SteamSession : IDisposable
         _friends = _client.GetHandler<SteamFriends>()!;
         _apps = _client.GetHandler<SteamApps>()!;
         _content = _client.GetHandler<SteamContent>()!;
+        _parental = _client.GetHandler<SteamUnifiedMessages>()!.CreateService<Parental>();
 
         _manager.Subscribe<SteamClient.ConnectedCallback>(_ => _connected.TrySetResult());
         _manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
@@ -220,7 +223,20 @@ public sealed class SteamSession : IDisposable
         LoggedIn?.Invoke(new AccountSnapshot(
             _accountName ?? string.Empty,
             steamId,
-            callback.IPCountryCode));
+            callback.IPCountryCode,
+            callback.AccountFlags.HasFlag(EAccountFlags.ParentalSettings)));
+    }
+
+    public async Task<bool> UnlockFamilyViewAsync(string pin)
+    {
+        var response = await _parental.ValidatePassword(new CParental_ValidatePassword_Request
+        {
+            password = pin,
+            session = string.Empty,
+            send_unlock_on_success = true
+        });
+
+        return response.Result == EResult.OK;
     }
 
     private void OnFriendsList(SteamFriends.FriendsListCallback callback)

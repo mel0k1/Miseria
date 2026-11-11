@@ -72,6 +72,39 @@
                         </StackPanel>
                     </StackPanel>
                 </Border>
+                <Border IsVisible="{Binding IsFamilyViewRequested}"
+                        Background="{DynamicResource LayerFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="16,14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Родительский контроль"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Сессия ограничена семейным доступом Steam (Family View). Введите PIN, чтобы снять ограничения, или продолжите без разблокировки."
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBox Text="{Binding FamilyViewPin}"
+                                 PasswordChar="●"
+                                 PlaceholderText="PIN" />
+                        <TextBlock Text="{Binding FamilyViewError}"
+                                   IsVisible="{Binding FamilyViewError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Разблокировать"
+                                    Command="{Binding SubmitFamilyViewCommand}"
+                                    Classes="accent" />
+                            <Button Content="Продолжить"
+                                    Command="{Binding SkipFamilyViewCommand}" />
+                        </StackPanel>
+                        <ProgressBar IsIndeterminate="True"
+                                     IsVisible="{Binding FamilyViewBusy}"
+                                     Height="2" />
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Border>
     </Panel>
