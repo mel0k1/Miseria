@@ -14,8 +14,15 @@ public partial class GroupsViewModel : ObservableObject
     private readonly SteamSession _session;
     private bool _loaded;
     private int _busy;
+    private int _feedBusy;
+    private string _announcementsGroupId = string.Empty;
+    private string _discussionsGroupId = string.Empty;
 
     public ObservableCollection<GroupItem> Groups { get; } = [];
+
+    public ObservableCollection<AnnouncementItem> Announcements { get; } = [];
+
+    public ObservableCollection<DiscussionItem> Discussions { get; } = [];
 
     [ObservableProperty]
     private bool _isBusy;
@@ -32,9 +39,32 @@ public partial class GroupsViewModel : ObservableObject
     [ObservableProperty]
     private GroupItem? _selectedGroup;
 
+    [ObservableProperty]
+    private int _section;
+
+    [ObservableProperty]
+    private bool _isFeedBusy;
+
+    [ObservableProperty]
+    private string _feedStatusText = string.Empty;
+
     public bool HasGroups => Groups.Count > 0;
 
     public bool IsEmpty => !IsBusy && !HasGroups;
+
+    public bool IsGroupsMode => Section == 0;
+
+    public bool IsAnnouncementsMode => Section == 1;
+
+    public bool IsDiscussionsMode => Section == 2;
+
+    public string FeedHintText => SelectedGroup == null
+        ? "Выберите группу слева, чтобы увидеть её анонсы"
+        : IsAnnouncementsMode ? "Свежие анонсы группы" : "Последние темы форума группы";
+
+    public bool HasAnnouncements => Announcements.Count > 0;
+
+    public bool HasDiscussions => Discussions.Count > 0;
 
     public GroupsViewModel(GroupService groups, ItemIconCache icons, SteamSession session)
     {
@@ -47,6 +77,14 @@ public partial class GroupsViewModel : ObservableObject
         {
             OnPropertyChanged(nameof(HasGroups));
             OnPropertyChanged(nameof(IsEmpty));
+        };
+        Announcements.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasAnnouncements));
+        Discussions.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscussions));
+
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(Section) or nameof(SelectedGroup))
+                OnPropertyChanged(nameof(FeedHintText));
         };
     }
 
@@ -188,6 +226,126 @@ public partial class GroupsViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ShowGroups() => SetSection(0);
+
+    [RelayCommand]
+    private Task ShowAnnouncements() => SetSectionAsync(1);
+
+    [RelayCommand]
+    private Task ShowDiscussions() => SetSectionAsync(2);
+
+    private void SetSection(int value)
+    {
+        Section = value;
+        OnPropertyChanged(nameof(IsGroupsMode));
+        OnPropertyChanged(nameof(IsAnnouncementsMode));
+        OnPropertyChanged(nameof(IsDiscussionsMode));
+    }
+
+    private async Task SetSectionAsync(int value)
+    {
+        SetSection(value);
+
+        if (value == 0)
+            return;
+
+        var group = SelectedGroup;
+
+        if (group == null)
+        {
+            FeedStatusText = "Выберите группу, чтобы загрузить её содержимое";
+            return;
+        }
+
+        await LoadFeedAsync(group, value);
+    }
+
+    [RelayCommand]
+    private Task RefreshFeed() => SelectedGroup == null
+        ? Task.CompletedTask
+        : LoadFeedAsync(SelectedGroup, Section, force: true);
+
+    private async Task LoadFeedAsync(GroupItem group, int value, bool force = false)
+    {
+        if (Interlocked.CompareExchange(ref _feedBusy, 1, 0) != 0)
+            return;
+
+        IsFeedBusy = true;
+
+        try
+        {
+            if (value == 1)
+            {
+                if (!force && _announcementsGroupId == group.GroupId && Announcements.Count > 0)
+                    return;
+
+                var snapshots = await _groups.GetAnnouncementsAsync(group.Snapshot);
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    _announcementsGroupId = group.GroupId;
+                    Announcements.Clear();
+
+                    foreach (var snapshot in snapshots)
+                        Announcements.Add(new AnnouncementItem(
+                            snapshot.Title,
+                            snapshot.Url,
+                            snapshot.Date == DateTimeOffset.MinValue ? string.Empty : RuFormat.Date(snapshot.Date),
+                            snapshot.Text));
+
+                    FeedStatusText = Announcements.Count == 0
+                        ? "Анонсов нет или лента недоступна"
+                        : $"Анонсов: {Announcements.Count}";
+                });
+            }
+            else if (value == 2)
+            {
+                if (!force && _discussionsGroupId == group.GroupId && Discussions.Count > 0)
+                    return;
+
+                var snapshots = await _groups.GetDiscussionsAsync(group.Snapshot);
+
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    _discussionsGroupId = group.GroupId;
+                    Discussions.Clear();
+
+                    foreach (var snapshot in snapshots)
+                        Discussions.Add(new DiscussionItem(
+                            snapshot.Title,
+                            snapshot.Url,
+                            snapshot.Author,
+                            BuildDiscussionMeta(snapshot)));
+
+                    FeedStatusText = Discussions.Count == 0
+                        ? "Темы не найдены или форум закрыт"
+                        : $"Тем: {Discussions.Count}";
+                });
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref _feedBusy, 0);
+            IsFeedBusy = false;
+        }
+    }
+
+    private static string BuildDiscussionMeta(GroupDiscussionSnapshot snapshot)
+    {
+        var parts = new List<string>();
+
+        if (snapshot.Author.Length > 0)
+            parts.Add($"Автор: {snapshot.Author}");
+
+        parts.Add($"Ответов: {snapshot.Replies}");
+
+        if (snapshot.LastPost != null)
+            parts.Add($"Последнее: {RuFormat.DayTime(snapshot.LastPost.Value)}");
+
+        return string.Join(" · ", parts);
+    }
+
     private async Task LoadAvatarAsync(GroupItem item, string? url)
     {
         var bitmap = await _icons.LoadUrlAsync(url);
@@ -198,6 +356,14 @@ public partial class GroupsViewModel : ObservableObject
         await Dispatcher.UIThread.InvokeAsync(() => item.SetAvatar(bitmap));
     }
 
+    partial void OnSelectedGroupChanged(GroupItem? value)
+    {
+        if (Section != 0)
+            _ = value == null
+                ? Task.CompletedTask
+                : LoadFeedAsync(value, Section);
+    }
+
     private void Reset()
     {
         _loaded = false;
@@ -206,5 +372,11 @@ public partial class GroupsViewModel : ObservableObject
         StatusText = string.Empty;
         ActionMessage = string.Empty;
         JoinQuery = string.Empty;
+        Announcements.Clear();
+        Discussions.Clear();
+        _announcementsGroupId = string.Empty;
+        _discussionsGroupId = string.Empty;
+        FeedStatusText = string.Empty;
+        SetSection(0);
     }
 }

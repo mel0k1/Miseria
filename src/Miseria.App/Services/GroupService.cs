@@ -1,5 +1,7 @@
 using System.Globalization;
+using System.Net;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Miseria.Core;
 
@@ -7,8 +9,25 @@ namespace Miseria.App.Services;
 
 public sealed record GroupSnapshot(string GroupId, string ShortName, string Name, string Headline, string Summary, string? AvatarUrl, int MemberCount, int OnlineCount, int InGameCount);
 
+public sealed record GroupAnnouncementSnapshot(string Title, string Url, DateTimeOffset Date, string Text);
+
+public sealed record GroupDiscussionSnapshot(string Title, string Url, string Author, int Replies, DateTimeOffset? LastPost);
+
 public sealed class GroupService
 {
+    private static readonly Regex TopicSplit = new(@"class=""forum_topic(?=[\s""])", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex TopicContainer = new(@"class=""forum_topic[\s""]", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex TopicUrl = new(@"class=""forum_topic_overlay""\s+href=""([^""]+)""", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex TopicName = new(@"class=""forum_topic_name[^""]*"">\s*(.*?)\s*</div>", RegexOptions.Compiled | RegexOptions.Singleline, TimeSpan.FromSeconds(5));
+    private static readonly Regex TopicAuthor = new(@"class=""forum_topic_op[^""]*"">\s*(.*?)\s*</div>", RegexOptions.Compiled | RegexOptions.Singleline, TimeSpan.FromSeconds(5));
+    private static readonly Regex TopicReplies = new(@"class=""forum_topic_reply_count"">\s*<img[^>]*>\s*(\d+)", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex TopicTimestamp = new(@"data-timestamp=""(\d+)""", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex Tags = new(@"<[^>]+>", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex Spaces = new(@"\s+", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+
+    private const int MaxDiscussions = 30;
+    private const int MaxTextLength = 300;
+
     private readonly SteamWebApi _web;
 
     public GroupService(SteamWebApi web) => _web = web;
@@ -57,6 +76,114 @@ public sealed class GroupService
         catch (HttpRequestException)
         {
             return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<GroupAnnouncementSnapshot>> GetAnnouncementsAsync(GroupSnapshot group, CancellationToken cancellationToken = default)
+    {
+        var url = GroupUrl(group, "rss/");
+
+        try
+        {
+            var xml = await _web.GetCommunityXmlAsync(url, cancellationToken);
+            var announcements = new List<GroupAnnouncementSnapshot>();
+
+            if (string.IsNullOrWhiteSpace(xml))
+                return announcements;
+
+            var document = XDocument.Parse(xml);
+            var channel = document.Root?.Element("channel");
+
+            if (channel == null)
+                return announcements;
+
+            foreach (var item in channel.Elements("item"))
+            {
+                var title = CleanText(item.Element("title")?.Value ?? string.Empty);
+                var link = TrimValue(item.Element("link")?.Value);
+                var text = CleanText(Tags.Replace(WebUtility.HtmlDecode(item.Element("description")?.Value ?? string.Empty), " "));
+
+                if (text.Length > MaxTextLength)
+                    text = text[..MaxTextLength].TrimEnd() + "…";
+
+                if (title.Length == 0 || link.Length == 0)
+                    continue;
+
+                var published = DateTimeOffset.TryParse(
+                    item.Element("pubDate")?.Value,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var parsed)
+                    ? parsed.ToLocalTime()
+                    : DateTimeOffset.MinValue;
+
+                announcements.Add(new GroupAnnouncementSnapshot(title, link, published, text));
+            }
+
+            return announcements;
+        }
+        catch (HttpRequestException)
+        {
+            return [];
+        }
+        catch (System.Xml.XmlException)
+        {
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<GroupDiscussionSnapshot>> GetDiscussionsAsync(GroupSnapshot group, CancellationToken cancellationToken = default)
+    {
+        var url = GroupUrl(group, "discussions");
+
+        try
+        {
+            var html = await _web.GetSessionCommunityTextAsync(url, cancellationToken);
+            var topics = new List<GroupDiscussionSnapshot>();
+
+            if (string.IsNullOrWhiteSpace(html))
+                return topics;
+
+            foreach (var raw in TopicSplit.Split(html).Skip(1))
+            {
+                var block = raw;
+
+                var next = TopicContainer.Match(block);
+
+                if (next.Success)
+                    block = block[..next.Index];
+
+                var link = TopicUrl.Match(block);
+                var name = TopicName.Match(block);
+                var author = TopicAuthor.Match(block);
+                var replies = TopicReplies.Match(block);
+                var stamp = TopicTimestamp.Match(block);
+
+                var title = CleanText(name.Success ? name.Groups[1].Value : string.Empty);
+
+                if (!link.Success || title.Length == 0)
+                    continue;
+
+                var lastPost = stamp.Success && long.TryParse(stamp.Groups[1].Value, out var seconds)
+                    ? DateTimeOffset.FromUnixTimeSeconds(seconds).ToLocalTime()
+                    : (DateTimeOffset?)null;
+
+                topics.Add(new GroupDiscussionSnapshot(
+                    title,
+                    WebUtility.HtmlDecode(link.Groups[1].Value),
+                    CleanText(author.Success ? author.Groups[1].Value : string.Empty),
+                    replies.Success ? int.Parse(replies.Groups[1].Value, CultureInfo.InvariantCulture) : 0,
+                    lastPost));
+
+                if (topics.Count >= MaxDiscussions)
+                    break;
+            }
+
+            return topics;
+        }
+        catch (HttpRequestException)
+        {
+            return [];
         }
     }
 
@@ -131,6 +258,14 @@ public sealed class GroupService
             return null;
         }
     }
+
+    private static string GroupUrl(GroupSnapshot group, string tail) =>
+        group.ShortName.Length > 0
+            ? $"https://steamcommunity.com/groups/{Uri.EscapeDataString(group.ShortName)}/{tail}"
+            : $"https://steamcommunity.com/gid/{group.GroupId}/{tail}";
+
+    private static string CleanText(string source) =>
+        Spaces.Replace(WebUtility.HtmlDecode(source), " ").Trim();
 
     private static string ExtractShortName(string query)
     {
