@@ -117,15 +117,24 @@ internal static class Program
             .AddSingleton<ManifestStore>()
             .AddSingleton<SessionStore>()
             .AddSingleton<SteamSession>()
+            .AddSingleton<SteamWebApi>(sp => new SteamWebApi(() =>
+                sp.GetRequiredService<SteamSession>().GetWebIdentityAsync()))
             .AddSingleton<AvatarCache>()
             .AddSingleton<AppIconCache>()
+            .AddSingleton<ItemIconCache>()
             .AddSingleton<ThemeService>()
+            .AddSingleton<MarketService>()
+            .AddSingleton<TradeService>()
+            .AddSingleton<CommunityService>()
             .AddSingleton<LogonViewModel>()
             .AddSingleton<MainViewModel>()
             .AddSingleton<FriendsViewModel>()
             .AddSingleton<HomeViewModel>()
             .AddSingleton<LibraryViewModel>()
             .AddSingleton<DownloadViewModel>()
+            .AddSingleton<MarketViewModel>()
+            .AddSingleton<TradesViewModel>()
+            .AddSingleton<CommunityViewModel>()
             .AddSingleton<ProfileViewModel>()
             .AddSingleton<SettingsViewModel>()
             .BuildServiceProvider();
@@ -179,6 +188,9 @@ internal static class Program
         download.SpeedText = "42,7 МБ/с";
         download.StatusText = "r6/config/settings.ini";
         download.DestinationText = "/home/user/Miseria/games/1091500";
+
+        await BuildFakeTradesAsync(services, friends);
+        await Task.Delay(12000);
 
         home.Initialize(new AccountSnapshot("mel0k1", 76561198012345678, "RU", false));
 
@@ -234,6 +246,32 @@ internal static class Program
         await PumpAsync();
         await CaptureAsync(window, Path.Combine(outDir, "profile-dark.png"));
 
+        window.NavigateTo("market");
+        await WaitForMarketAsync(main.Market);
+
+        if (main.Market.Results.Count > 0)
+        {
+            main.Market.SelectedItem = main.Market.Results[0];
+
+            for (var attempt = 0; attempt < 3 && !main.Market.HasDetail; attempt++)
+            {
+                await Task.Delay(2000);
+                main.Market.SelectedItem = null;
+                main.Market.SelectedItem = main.Market.Results[0];
+            }
+        }
+
+        await Task.Delay(1500);
+        await CaptureAsync(window, Path.Combine(outDir, "market-dark.png"));
+
+        window.NavigateTo("trades");
+        await Task.Delay(2200);
+        await CaptureAsync(window, Path.Combine(outDir, "trades-dark.png"));
+
+        window.NavigateTo("community");
+        await Task.Delay(5000);
+        await CaptureAsync(window, Path.Combine(outDir, "community-dark.png"));
+
         theme.Apply(AppTheme.Kiwi);
         window.NavigateTo("friends");
         await PumpAsync();
@@ -250,6 +288,90 @@ internal static class Program
         await CaptureAsync(window, Path.Combine(outDir, "chat-dark.png"));
 
         window.Close();
+    }
+
+    private static async Task WaitForMarketAsync(MarketViewModel market)
+    {
+        for (var attempt = 0; attempt < 4 && market.Results.Count == 0; attempt++)
+        {
+            await Task.Delay(4000);
+
+            if (market.Results.Count > 0)
+                return;
+
+            await market.SearchCommand.ExecuteAsync(null);
+        }
+    }
+
+    private static async Task BuildFakeTradesAsync(IServiceProvider services, FriendsViewModel friends)
+    {
+        var trades = services.GetRequiredService<TradesViewModel>();
+        var marketService = services.GetRequiredService<MarketService>();
+        var icons = services.GetRequiredService<ItemIconCache>();
+
+        trades.SuppressAutoLoad();
+
+        var items = new List<MarketItemSnapshot>();
+
+        for (var attempt = 0; attempt < 3 && items.Count == 0; attempt++)
+        {
+            try
+            {
+                items.AddRange((await marketService.SearchAsync(730, string.Empty, 0, 10)).Items);
+            }
+            catch
+            {
+                await Task.Delay(2500);
+            }
+        }
+
+        var descriptions = new Dictionary<(uint AppId, long ClassId, long InstanceId), TradeDescriptionSnapshot>();
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            descriptions[(730, i + 1, 0)] = new TradeDescriptionSnapshot(
+                730,
+                i + 1,
+                0,
+                items[i].Name,
+                i % 2 == 0 ? "Контейнер" : "Обычный предмет",
+                items[i].IconUrl,
+                null);
+        }
+
+        ulong PartnerId(int index) => 76561198000000000UL + (ulong)index;
+
+        TradeOfferSnapshot Snapshot(int index, TradeDirection direction, ulong partner, string message, bool mobile, int giveFrom, int receiveFrom)
+        {
+            TradeAssetSnapshot Asset(int slot) => new(730, slot + 1, 0, 1000 + slot);
+
+            return new TradeOfferSnapshot(
+                3314000000UL + (ulong)index,
+                partner,
+                direction == TradeDirection.Sent,
+                direction,
+                message,
+                DateTimeOffset.UtcNow.AddHours(-2 - index),
+                mobile,
+                [Asset(giveFrom), Asset(giveFrom + 1)],
+                [Asset(receiveFrom), Asset(receiveFrom + 1)]);
+        }
+
+        var first = new TradeOfferItem(
+            Snapshot(0, TradeDirection.Incoming, PartnerId(0), "Го обмен, у меня лишние кейсы после турнира", true, 0, 2),
+            icons,
+            descriptions);
+        first.SetPartner(friends.Friends.FirstOrDefault(f => f.SteamId == PartnerId(0)));
+
+        var second = new TradeOfferItem(
+            Snapshot(1, TradeDirection.Incoming, PartnerId(3), string.Empty, false, 4, 6),
+            icons,
+            descriptions);
+        second.SetPartner(friends.Friends.FirstOrDefault(f => f.SteamId == PartnerId(3)));
+
+        trades.Offers.Add(first);
+        trades.Offers.Add(second);
+        trades.StatusText = "Активных обменов: 2";
     }
 
     private static async Task Shot(Window window, string path)
