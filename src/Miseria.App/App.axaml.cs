@@ -46,6 +46,7 @@ public class App : Application
             sp.GetRequiredService<SteamWebApi>(),
             () => Task.FromResult(sp.GetRequiredService<SteamSession>().OwnSteamId)));
         collection.AddSingleton<TradeService>();
+        collection.AddSingleton<WorkshopService>();
         collection.AddSingleton<CommunityService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
@@ -56,6 +57,7 @@ public class App : Application
         collection.AddSingleton<MarketViewModel>();
         collection.AddSingleton<InventoryViewModel>();
         collection.AddSingleton<TradesViewModel>();
+        collection.AddSingleton<WorkshopViewModel>();
         collection.AddSingleton<CommunityViewModel>();
         collection.AddSingleton<ProfileViewModel>();
         collection.AddSingleton<SettingsViewModel>();

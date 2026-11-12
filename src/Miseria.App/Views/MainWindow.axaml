@@ -29,6 +29,9 @@
         <DataTemplate DataType="vm:TradesViewModel">
             <views:TradesView />
         </DataTemplate>
+        <DataTemplate DataType="vm:WorkshopViewModel">
+            <views:WorkshopView />
+        </DataTemplate>
         <DataTemplate DataType="vm:CommunityViewModel">
             <views:CommunityView />
         </DataTemplate>
@@ -78,6 +81,11 @@
             <ui:FANavigationViewItem Tag="trades" Content="Обмены">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Tag" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="workshop" Content="Мастерская">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Cloud" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="community" Content="Сообщество">
