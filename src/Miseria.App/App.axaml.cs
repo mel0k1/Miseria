@@ -42,6 +42,7 @@ public class App : Application
         collection.AddSingleton<ItemIconCache>();
         collection.AddSingleton<ThemeService>();
         collection.AddSingleton<MarketService>();
+        collection.AddSingleton<TradeService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
         collection.AddSingleton<FriendsViewModel>();
@@ -49,6 +50,7 @@ public class App : Application
         collection.AddSingleton<LibraryViewModel>();
         collection.AddSingleton<DownloadViewModel>();
         collection.AddSingleton<MarketViewModel>();
+        collection.AddSingleton<TradesViewModel>();
         collection.AddSingleton<ProfileViewModel>();
         collection.AddSingleton<SettingsViewModel>();
 

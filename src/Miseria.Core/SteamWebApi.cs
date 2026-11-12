@@ -73,7 +73,22 @@ public sealed class SteamWebApi
         response.EnsureSuccessStatusCode();
 
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
-        return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text);
+        return TryParse(text);
+    }
+
+    private static JsonNode? TryParse(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        try
+        {
+            return JsonNode.Parse(text);
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     private async Task<string> BuildCookiesAsync()

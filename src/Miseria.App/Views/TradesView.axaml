@@ -1,0 +1,248 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.TradesView"
+             x:DataType="vm:TradesViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.offerCard">
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style Selector="TextBlock.groupLabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="ToggleButton.segmented">
+            <Setter Property="Padding" Value="12,5" />
+        </Style>
+        <Style Selector="ToggleButton.segmented:checked">
+            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+        </Style>
+        <Style Selector="ToggleButton.segmented:checked TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+        </Style>
+        <Style Selector="Border.tile">
+            <Setter Property="Width" Value="116" />
+            <Setter Property="Height" Value="84" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="Auto,*,Auto"
+          RowSpacing="12"
+          Margin="28,24,28,16">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,Auto,Auto,Auto"
+              ColumnSpacing="10">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Обмены"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <ToggleButton Grid.Column="1"
+                          Classes.segmented="True"
+                          IsChecked="{Binding IsIncoming}"
+                          Content="Входящие" />
+            <ToggleButton Grid.Column="2"
+                          Classes.segmented="True"
+                          IsChecked="{Binding !IsIncoming}"
+                          Content="Отправленные" />
+            <Button Grid.Column="3"
+                    Content="Обновить"
+                    Command="{Binding RefreshCommand}"
+                    VerticalAlignment="Center" />
+        </Grid>
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                <ItemsControl ItemsSource="{Binding Offers}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Classes.offerCard="True">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnDefinitions="Auto,*,Auto"
+                                          ColumnSpacing="10">
+                                        <Border Width="36"
+                                                Height="36"
+                                                CornerRadius="4"
+                                                ClipToBounds="True">
+                                            <Panel>
+                                                <Image Source="{Binding PartnerAvatar}"
+                                                       IsVisible="{Binding HasPartnerAvatar}"
+                                                       Stretch="UniformToFill" />
+                                                <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                        CornerRadius="4"
+                                                        IsVisible="{Binding !HasPartnerAvatar}">
+                                                    <TextBlock Text="?"
+                                                               FontSize="15"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </Border>
+                                            </Panel>
+                                        </Border>
+                                        <StackPanel Grid.Column="1"
+                                                    VerticalAlignment="Center"
+                                                    Spacing="2">
+                                            <TextBlock Text="{Binding PartnerName}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <StackPanel Orientation="Horizontal"
+                                                        Spacing="8">
+                                                <TextBlock Text="{Binding CreatedText}"
+                                                           FontSize="12"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                <TextBlock Text="Нужно подтверждение в мобильном приложении"
+                                                           FontSize="12"
+                                                           IsVisible="{Binding NeedsMobileConfirmation}"
+                                                           Foreground="{DynamicResource SystemFillColorCautionBrush}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="6"
+                                            Padding="10,7"
+                                            IsVisible="{Binding HasMessage}">
+                                        <TextBlock Text="{Binding Message}"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </Border>
+                                    <Grid ColumnDefinitions="*,*"
+                                          ColumnSpacing="14">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Classes.groupLabel="True" Text="Вы отдаёте" />
+                                            <ItemsControl ItemsSource="{Binding Give}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Width="116"
+                                                                    Margin="0,0,8,8"
+                                                                    Spacing="3">
+                                                            <Border Classes.tile="True">
+                                                                <Image Source="{Binding Icon}"
+                                                                       IsVisible="{Binding HasIcon}"
+                                                                       Stretch="Uniform"
+                                                                       Margin="4" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="11"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ToolTip.Tip="{Binding Name}" />
+                                                            <TextBlock Text="{Binding Type}"
+                                                                       FontSize="10"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding HasType}"
+                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Classes.groupLabel="True" Text="Вы получаете" />
+                                            <ItemsControl ItemsSource="{Binding Receive}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Width="116"
+                                                                    Margin="0,0,8,8"
+                                                                    Spacing="3">
+                                                            <Border Classes.tile="True">
+                                                                <Image Source="{Binding Icon}"
+                                                                       IsVisible="{Binding HasIcon}"
+                                                                       Stretch="Uniform"
+                                                                       Margin="4" />
+                                                            </Border>
+                                                            <TextBlock Text="{Binding Name}"
+                                                                       FontSize="11"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       ToolTip.Tip="{Binding Name}" />
+                                                            <TextBlock Text="{Binding Type}"
+                                                                       FontSize="10"
+                                                                       TextTrimming="CharacterEllipsis"
+                                                                       IsVisible="{Binding HasType}"
+                                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8"
+                                                HorizontalAlignment="Right">
+                                        <Button Content="Принять"
+                                                Command="{Binding $parent[UserControl].DataContext.AcceptCommand}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding !IsBusy}"
+                                                IsVisible="{Binding IsIncoming}" />
+                                        <Button Content="Отклонить"
+                                                Command="{Binding $parent[UserControl].DataContext.DeclineCommand}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding !IsBusy}"
+                                                IsVisible="{Binding IsIncoming}" />
+                                        <Button Content="Отменить"
+                                                Command="{Binding $parent[UserControl].DataContext.CancelCommand}"
+                                                CommandParameter="{Binding}"
+                                                IsEnabled="{Binding !IsBusy}"
+                                                IsVisible="{Binding !IsIncoming}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel IsVisible="{Binding IsEmpty}"
+                            HorizontalAlignment="Center"
+                            Margin="0,48,0,0"
+                            Spacing="8">
+                    <TextBlock Text="Обменов пока нет"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="{Binding EmptyText}"
+                               TextWrapping="Wrap"
+                               MaxWidth="420"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+        <Grid Grid.Row="1"
+              IsVisible="{Binding IsBusy}">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="10">
+                <ProgressBar IsIndeterminate="True"
+                             Width="200"
+                             Height="2" />
+                <TextBlock Text="Загрузка обменов…"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+        <TextBlock Grid.Row="2"
+                   Text="{Binding ActionMessage}"
+                   FontSize="12"
+                   TextWrapping="Wrap"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Grid>
+</UserControl>
