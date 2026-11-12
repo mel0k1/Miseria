@@ -34,7 +34,7 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() => NavigateTo("downloads"));
     }
 
-    private void NavigateTo(string tag)
+    public void NavigateTo(string tag)
     {
         foreach (var item in Nav.MenuItems.OfType<FANavigationViewItem>())
         {
