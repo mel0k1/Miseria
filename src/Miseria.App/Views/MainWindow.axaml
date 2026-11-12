@@ -31,6 +31,7 @@
                          PaneDisplayMode="Left"
                          OpenPaneLength="220"
                          IsBackButtonVisible="False"
+                         IsSettingsVisible="False"
                          IsPaneToggleButtonVisible="False"
                          SelectionChanged="OnNavSelectionChanged">
         <ui:FANavigationView.MenuItems>
@@ -60,6 +61,18 @@
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
         </ui:FANavigationView.MenuItems>
+        <ui:FANavigationView.PaneFooter>
+            <StackPanel Margin="12,8,12,12"
+                        Spacing="2">
+                <TextBlock Text="{Binding Home.Account.AccountName}"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Home.SteamIdText}"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </ui:FANavigationView.PaneFooter>
         <ContentControl Content="{Binding CurrentPage}" />
     </ui:FANavigationView>
 </Window>

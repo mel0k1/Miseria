@@ -21,6 +21,12 @@ public partial class AppItem : ObservableObject
     private bool _hasIcon;
 
     [ObservableProperty]
+    private Bitmap? _capsule;
+
+    [ObservableProperty]
+    private bool _hasCapsule;
+
+    [ObservableProperty]
     private bool _isInstalled;
 
     public AppItem(AppSnapshot snapshot)

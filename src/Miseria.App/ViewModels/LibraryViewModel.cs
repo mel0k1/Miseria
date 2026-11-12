@@ -32,6 +32,9 @@ public partial class LibraryViewModel : ObservableObject
     [ObservableProperty]
     private string _launchMessage = string.Empty;
 
+    [ObservableProperty]
+    private bool _isGrid;
+
     public bool HasApps => Apps.Count > 0;
 
     public bool SearchActive => SearchText.Trim().Length > 0;
@@ -93,6 +96,41 @@ public partial class LibraryViewModel : ObservableObject
 
         HasList = true;
         RebuildVisible();
+
+        if (IsGrid)
+            LoadCapsules();
+    }
+
+    [RelayCommand]
+    private void ToggleView()
+    {
+        IsGrid = !IsGrid;
+
+        if (IsGrid)
+            LoadCapsules();
+    }
+
+    private void LoadCapsules()
+    {
+        foreach (var item in Apps)
+            _ = LoadCapsuleAsync(item);
+    }
+
+    private async Task LoadCapsuleAsync(AppItem item)
+    {
+        var bitmap = await _icons.LoadCapsuleAsync(item.AppId);
+
+        if (bitmap == null)
+            return;
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (Apps.Contains(item))
+            {
+                item.Capsule = bitmap;
+                item.HasCapsule = true;
+            }
+        });
     }
 
     private async Task LoadIconAsync(AppItem item)
@@ -118,6 +156,7 @@ public partial class LibraryViewModel : ObservableObject
         Apps.Clear();
         Visible.Clear();
         HasList = false;
+        IsGrid = false;
     }
 
     [RelayCommand]

@@ -8,7 +8,7 @@
           RowSpacing="16"
           Margin="28,24,28,16">
         <Grid Grid.Row="0"
-              ColumnDefinitions="*,280"
+              ColumnDefinitions="*,Auto,280"
               ColumnSpacing="16">
             <StackPanel Spacing="2">
                 <TextBlock Text="Библиотека"
@@ -23,13 +23,27 @@
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource SystemFillColorSuccessBrush}" />
             </StackPanel>
-            <TextBox Grid.Column="1"
+            <Button Grid.Column="1"
+                    Padding="8"
+                    VerticalAlignment="Center"
+                    Command="{Binding ToggleViewCommand}">
+                <Panel>
+                    <ui:FASymbolIcon Symbol="SetTile"
+                                     FontSize="16"
+                                     IsVisible="{Binding !IsGrid}" />
+                    <ui:FASymbolIcon Symbol="List"
+                                     FontSize="16"
+                                     IsVisible="{Binding IsGrid}" />
+                </Panel>
+            </Button>
+            <TextBox Grid.Column="2"
                      Text="{Binding SearchText}"
                      PlaceholderText="Поиск в библиотеке"
                      VerticalAlignment="Center" />
         </Grid>
         <Panel Grid.Row="1">
-            <ListBox ItemsSource="{Binding Visible}">
+            <ListBox ItemsSource="{Binding Visible}"
+                     IsVisible="{Binding !IsGrid}">
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid ColumnDefinitions="44,*,Auto"
@@ -94,6 +108,74 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
+            <ScrollViewer IsVisible="{Binding IsGrid}">
+                <ItemsControl ItemsSource="{Binding Visible}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Width="231"
+                                        Margin="0,0,12,14"
+                                        Spacing="6">
+                                <Panel>
+                                    <Border Height="87"
+                                            CornerRadius="4"
+                                            ClipToBounds="True"
+                                            Background="{DynamicResource ControlFillColorDefaultBrush}">
+                                        <Panel>
+                                            <Image Source="{Binding Capsule}"
+                                                   IsVisible="{Binding HasCapsule}"
+                                                   Stretch="UniformToFill" />
+                                            <TextBlock IsVisible="{Binding !HasCapsule}"
+                                                       Text="{Binding Initial}"
+                                                       FontSize="26"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </Panel>
+                                    </Border>
+                                    <Button IsVisible="{Binding IsInstalled}"
+                                            Classes="accent"
+                                            Padding="8,4"
+                                            Margin="0,0,6,6"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Bottom"
+                                            ToolTip.Tip="Запустить установленную игру"
+                                            Command="{Binding $parent[UserControl].DataContext.PlayCommand}"
+                                            CommandParameter="{Binding}">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <ui:FASymbolIcon Symbol="Play"
+                                                             FontSize="12" />
+                                            <TextBlock Text="Играть" FontSize="12" />
+                                        </StackPanel>
+                                    </Button>
+                                    <Button IsVisible="{Binding !IsInstalled}"
+                                            Classes="accent"
+                                            Padding="6"
+                                            Margin="0,0,6,6"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Bottom"
+                                            ToolTip.Tip="Скачать через Steam CDN"
+                                            Command="{Binding $parent[UserControl].DataContext.Download.StartCommand}"
+                                            CommandParameter="{Binding}">
+                                        <ui:FASymbolIcon Symbol="Download"
+                                                         FontSize="14" />
+                                    </Button>
+                                </Panel>
+                                <TextBlock Text="{Binding Name}"
+                                           FontSize="12"
+                                           TextTrimming="CharacterEllipsis"
+                                           TextAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
             <StackPanel IsVisible="{Binding !HasList}"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
