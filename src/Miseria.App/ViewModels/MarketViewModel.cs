@@ -180,7 +180,9 @@ public partial class MarketViewModel : ObservableObject
                         listing.Name,
                         (SelectedCurrency?.Currency ?? MarketCurrency.Usd).Format(listing.PriceCents),
                         "Объявление активно",
-                        null);
+                        null,
+                        0,
+                        listing.ListingId);
                     Listings.Add(item);
                     _ = LoadIconAsync(item, listing.IconUrl);
                 }
@@ -194,7 +196,10 @@ public partial class MarketViewModel : ObservableObject
                         order.HashName,
                         (SelectedCurrency?.Currency ?? MarketCurrency.Usd).Format(order.PriceCents),
                         $"Количество: {order.Quantity}",
-                        null);
+                        null,
+                        0,
+                        0,
+                        order.OrderId);
                     Orders.Add(item);
                 }
 
@@ -245,6 +250,54 @@ public partial class MarketViewModel : ObservableObject
             _ = RefreshListingsAsync();
         else
             _ = SearchAsync();
+    }
+
+    [RelayCommand]
+    private async Task CancelListingAsync(MarketItem? item)
+    {
+        if (item == null || item.ListingId == 0 || item.IsBusy)
+            return;
+
+        item.IsBusy = true;
+
+        try
+        {
+            await _market.CancelListingAsync(item.ListingId);
+            ListingsSummary = $"Объявление {item.Name} снято";
+            await RefreshListingsAsync();
+        }
+        catch (HttpRequestException)
+        {
+            ListingsSummary = "Не удалось снять объявление";
+        }
+        finally
+        {
+            item.IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
+    private async Task CancelOrderAsync(MarketItem? item)
+    {
+        if (item == null || item.OrderId == 0 || item.IsBusy)
+            return;
+
+        item.IsBusy = true;
+
+        try
+        {
+            await _market.CancelBuyOrderAsync(item.OrderId);
+            ListingsSummary = $"Ордер на {item.Name} отменён";
+            await RefreshListingsAsync();
+        }
+        catch (HttpRequestException)
+        {
+            ListingsSummary = "Не удалось отменить ордер";
+        }
+        finally
+        {
+            item.IsBusy = false;
+        }
     }
 
     private void ShowListingsError()

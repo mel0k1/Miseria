@@ -194,7 +194,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Classes.itemRow="True">
-                                        <Grid ColumnDefinitions="40,*,Auto"
+                                        <Grid ColumnDefinitions="40,*,Auto,Auto"
                                               ColumnSpacing="10">
                                             <Border Width="36"
                                                     Height="36"
@@ -223,6 +223,13 @@
                                                        Classes.price="True"
                                                        Text="{Binding PriceText}"
                                                        VerticalAlignment="Center" />
+                                            <Button Grid.Column="3"
+                                                    Content="Снять"
+                                                    Command="{Binding $parent[UserControl].DataContext.CancelListingCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding !IsBusy}"
+                                                    VerticalAlignment="Center"
+                                                    Padding="10,4" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -238,7 +245,7 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Classes.itemRow="True">
-                                        <Grid ColumnDefinitions="40,*,Auto"
+                                        <Grid ColumnDefinitions="40,*,Auto,Auto"
                                               ColumnSpacing="10">
                                             <Border Width="36"
                                                     Height="36"
@@ -267,6 +274,13 @@
                                                        Classes.price="True"
                                                        Text="{Binding PriceText}"
                                                        VerticalAlignment="Center" />
+                                            <Button Grid.Column="3"
+                                                    Content="Отменить"
+                                                    Command="{Binding $parent[UserControl].DataContext.CancelOrderCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsEnabled="{Binding !IsBusy}"
+                                                    VerticalAlignment="Center"
+                                                    Padding="10,4" />
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

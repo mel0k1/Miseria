@@ -42,10 +42,62 @@ public sealed class SteamWebApi
     }
 
     public async Task<JsonNode?> GetCommunityJsonAsync(string path, IDictionary<string, string?> args, CancellationToken cancellationToken = default)
+        => await GetCommunityJsonAsync(path, args, CommunityBase, cancellationToken);
+
+    public async Task<JsonNode?> GetCommunityJsonAsync(string path, IDictionary<string, string?> args, string? referer, CancellationToken cancellationToken = default)
     {
         var cookies = await BuildCookiesAsync();
         var url = BuildUrl($"{CommunityBase}/{path}", args);
-        return await GetJsonAsync(url, cookies, cancellationToken);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        if (referer != null)
+            request.Headers.Referrer = new Uri(referer);
+
+        SetCookies(request, cookies);
+
+        using var response = await _http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        return string.IsNullOrWhiteSpace(text) ? null : TryParse(text);
+    }
+
+    public async Task<JsonNode?> PostCommunityFormAsync(string path, IDictionary<string, string?> form, CancellationToken cancellationToken = default)
+        => await PostFormAsync($"{CommunityBase}/{path}", null, form, true, cancellationToken);
+
+    public async Task<JsonNode?> PostFormAsync(string url, string? referer, IDictionary<string, string?> form, bool withSession, CancellationToken cancellationToken = default)
+    {
+        var identity = await _identity();
+        var fields = new Dictionary<string, string?>();
+
+        if (withSession)
+            fields["sessionid"] = identity.SessionId;
+
+        foreach (var pair in form)
+            fields[pair.Key] = pair.Value;
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = new FormUrlEncodedContent(fields.Where(f => f.Value != null)
+                .Select(f => new KeyValuePair<string, string>(f.Key, f.Value!)))
+        };
+
+        request.Headers.Referrer = referer == null ? new Uri(CommunityBase) : new Uri(referer);
+        request.Headers.TryAddWithoutValidation("X-Requested-With", "Steam App Version 3");
+        SetCookies(request, await BuildCookiesAsync());
+
+        using var response = await _http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var text = await response.Content.ReadAsStringAsync(cancellationToken);
+        return TryParse(text);
+    }
+
+    public async Task<string> GetCommunityXmlAsync(string url, CancellationToken cancellationToken = default)
+    {
+        var text = await GetCommunityTextAsync(url, cancellationToken);
+        return text ?? string.Empty;
     }
 
     public async Task<string?> GetCommunityTextAsync(string url, CancellationToken cancellationToken = default)
@@ -56,29 +108,6 @@ public sealed class SteamWebApi
         using var response = await _http.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(cancellationToken);
-    }
-
-    public async Task<JsonNode?> PostCommunityFormAsync(string path, IDictionary<string, string?> form, CancellationToken cancellationToken = default)
-    {
-        var identity = await _identity();
-        var fields = new Dictionary<string, string?> { ["sessionid"] = identity.SessionId };
-        foreach (var pair in form)
-            fields[pair.Key] = pair.Value;
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, BuildUrl($"{CommunityBase}/{path}", null))
-        {
-            Content = new FormUrlEncodedContent(fields.Where(f => f.Value != null)
-                .Select(f => new KeyValuePair<string, string>(f.Key, f.Value!)))
-        };
-        request.Headers.Referrer = new Uri(CommunityBase);
-        request.Headers.TryAddWithoutValidation("X-Requested-With", "Steam App Version 3");
-        SetCookies(request, await BuildCookiesAsync());
-
-        using var response = await _http.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var text = await response.Content.ReadAsStringAsync(cancellationToken);
-        return TryParse(text);
     }
 
     private static JsonNode? TryParse(string text)

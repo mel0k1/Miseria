@@ -40,9 +40,9 @@ public sealed record MarketItemSnapshot(uint AppId, string HashName, string Name
 
 public sealed record MarketPriceOverview(string LowestPrice, string MedianPrice, string Volume);
 
-public sealed record MyListingSnapshot(long PriceCents, string Name, string? IconUrl);
+public sealed record MyListingSnapshot(long PriceCents, string Name, string? IconUrl, ulong ListingId);
 
-public sealed record MyBuyOrderSnapshot(long PriceCents, long Quantity, string HashName);
+public sealed record MyBuyOrderSnapshot(long PriceCents, long Quantity, string HashName, ulong OrderId);
 
 public sealed record MyListings(IReadOnlyList<MyListingSnapshot> Listings, IReadOnlyList<MyBuyOrderSnapshot> BuyOrders);
 
@@ -157,7 +157,8 @@ public sealed class MarketService
                 listings.Add(new MyListingSnapshot(
                     price,
                     known ? description.Name : "Предмет",
-                    known ? description.Icon : null));
+                    known ? description.Icon : null,
+                    (ulong)ToLong(node["listingid"])));
             }
         }
 
@@ -170,11 +171,43 @@ public sealed class MarketService
                 buyOrders.Add(new MyBuyOrderSnapshot(
                     ToLong(node["price"]),
                     ToLong(node["quantity"]),
-                    node["hash_name"]?.GetValue<string>() ?? "—"));
+                    node["hash_name"]?.GetValue<string>() ?? "—",
+                    (ulong)ToLong(node["buy_orderid"])));
             }
         }
 
         return new MyListings(listings, buyOrders);
+    }
+
+    public async Task<bool> CancelListingAsync(ulong listingId, CancellationToken cancellationToken = default)
+    {
+        var form = new Dictionary<string, string?>();
+
+        await _web.PostFormAsync(
+            $"https://steamcommunity.com/market/removelisting/{listingId.ToString(CultureInfo.InvariantCulture)}/",
+            "https://steamcommunity.com/market/",
+            form,
+            true,
+            cancellationToken);
+
+        return true;
+    }
+
+    public async Task<bool> CancelBuyOrderAsync(ulong orderId, CancellationToken cancellationToken = default)
+    {
+        var form = new Dictionary<string, string?>
+        {
+            ["buy_orderid"] = orderId.ToString(CultureInfo.InvariantCulture)
+        };
+
+        await _web.PostFormAsync(
+            "https://steamcommunity.com/market/cancelbuyorder/",
+            "https://steamcommunity.com/market/",
+            form,
+            true,
+            cancellationToken);
+
+        return true;
     }
 
     private static long ToLong(JsonNode? node) =>

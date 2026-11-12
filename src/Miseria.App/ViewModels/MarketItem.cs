@@ -25,6 +25,9 @@ public partial class MarketItem : ObservableObject
     [ObservableProperty]
     private bool _hasIcon;
 
+    [ObservableProperty]
+    private bool _isBusy;
+
     public string HashName { get; }
 
     public uint AppId { get; }
@@ -33,11 +36,15 @@ public partial class MarketItem : ObservableObject
 
     public bool HasAppName => !string.IsNullOrWhiteSpace(AppName);
 
+    public ulong ListingId { get; }
+
+    public ulong OrderId { get; }
+
     public string MarketUrl => HashName.Length == 0
         ? "https://steamcommunity.com/market/"
         : $"https://steamcommunity.com/market/listings/{AppId}/{Uri.EscapeDataString(HashName)}";
 
-    public MarketItem(string hashName, string name, string priceText, string listingsText, string? appName, uint appId = 0)
+    public MarketItem(string hashName, string name, string priceText, string listingsText, string? appName, uint appId = 0, ulong listingId = 0, ulong orderId = 0)
     {
         HashName = hashName;
         Name = name;
@@ -45,6 +52,8 @@ public partial class MarketItem : ObservableObject
         ListingsText = listingsText;
         AppName = appName;
         AppId = appId;
+        ListingId = listingId;
+        OrderId = orderId;
     }
 
     public void SetIcon(Bitmap? bitmap)
