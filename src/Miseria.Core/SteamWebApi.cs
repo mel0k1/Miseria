@@ -110,6 +110,17 @@ public sealed class SteamWebApi
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
+    public async Task<string?> GetSessionCommunityTextAsync(string url, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Referrer = new Uri(CommunityBase);
+        SetCookies(request, await BuildCookiesAsync());
+
+        using var response = await _http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
     private static JsonNode? TryParse(string text)
     {
         if (string.IsNullOrWhiteSpace(text))

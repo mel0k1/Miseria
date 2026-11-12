@@ -169,6 +169,55 @@
                     <HyperlinkButton Content="Открыть в Steam"
                                      NavigateUri="{Binding SelectedItem.MarketUrl}"
                                      Padding="0" />
+                    <Button Content="Создать ордер на покупку"
+                            Command="{Binding StartBuyOrderCommand}"
+                            IsVisible="{Binding !IsOrderPanelOpen}"
+                            HorizontalAlignment="Left"
+                            Padding="12,6" />
+                    <StackPanel Spacing="8"
+                                IsVisible="{Binding IsOrderPanelOpen}">
+                        <TextBlock Text="Новый ордер на покупку"
+                                   FontSize="14"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding OrderBookSummary}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <Grid ColumnDefinitions="*,78"
+                              ColumnSpacing="8">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Classes.cardLabel="True" Text="Цена за предмет" />
+                                <TextBox Text="{Binding OrderPriceInput}"
+                                         PlaceholderText="0.00"
+                                         IsEnabled="{Binding !IsSubmittingOrder}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Classes.cardLabel="True" Text="Штук" />
+                                <TextBox Text="{Binding OrderQuantityInput}"
+                                         IsEnabled="{Binding !IsSubmittingOrder}" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{Binding OrderTotalText}"
+                                   Classes.price="True" />
+                        <TextBlock Text="Steam удержит комиссию при исполнении ордера. Деньги спишутся с кошелька по мере покупки."
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        <TextBlock Text="{Binding OrderMessage}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="Разместить"
+                                    Command="{Binding SubmitBuyOrderCommand}"
+                                    IsEnabled="{Binding CanSubmitOrder}"
+                                    Padding="12,6" />
+                            <Button Content="Отмена"
+                                    Command="{Binding CancelOrderPanelCommand}"
+                                    IsEnabled="{Binding !IsSubmittingOrder}"
+                                    Padding="12,6" />
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
                 <StackPanel Spacing="8"
                             IsVisible="{Binding !HasDetail}">

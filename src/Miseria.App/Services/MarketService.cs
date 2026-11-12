@@ -1,6 +1,8 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Net.Http;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Miseria.Core;
 
 namespace Miseria.App.Services;
@@ -46,9 +48,19 @@ public sealed record MyBuyOrderSnapshot(long PriceCents, long Quantity, string H
 
 public sealed record MyListings(IReadOnlyList<MyListingSnapshot> Listings, IReadOnlyList<MyBuyOrderSnapshot> BuyOrders);
 
+public sealed record MarketOrderRow(long PriceCents, long Quantity);
+
+public sealed record MarketOrderBook(long? HighestBuyOrderCents, long? LowestSellOrderCents, IReadOnlyList<MarketOrderRow> BuyRows, IReadOnlyList<MarketOrderRow> SellRows);
+
+public sealed record BuyOrderResult(bool Success, string Message, ulong OrderId);
+
 public sealed class MarketService
 {
+    private static readonly Regex NameIdClassic = new(@"Market_LoadOrderSpread\(\s*(\d+)\s*\)", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+    private static readonly Regex NameIdJson = new(@"item_nameid[""']?\s*[:=]\s*[""']?(\d+)", RegexOptions.Compiled, TimeSpan.FromSeconds(5));
+
     private readonly SteamWebApi _web;
+    private readonly ConcurrentDictionary<string, long?> _nameIds = new();
 
     public MarketService(SteamWebApi web) => _web = web;
 
@@ -177,6 +189,147 @@ public sealed class MarketService
         }
 
         return new MyListings(listings, buyOrders);
+    }
+
+    public async Task<MarketOrderBook?> GetOrderBookAsync(uint appId, string hashName, MarketCurrency currency, CancellationToken cancellationToken = default)
+    {
+        var nameId = await GetItemNameIdAsync(appId, hashName, cancellationToken);
+
+        if (nameId == null)
+            return null;
+
+        var args = new Dictionary<string, string?>
+        {
+            ["country"] = "RU",
+            ["language"] = "russian",
+            ["currency"] = ((int)currency).ToString(CultureInfo.InvariantCulture),
+            ["item_nameid"] = nameId.Value.ToString(CultureInfo.InvariantCulture)
+        };
+
+        try
+        {
+            var json = await _web.GetCommunityJsonAsync("market/itemordershistogram", args, ListingUrl(appId, hashName), cancellationToken);
+
+            if (json?["success"]?.GetValue<long>() != 1)
+                return null;
+
+            return new MarketOrderBook(
+                ParseCents(json["highest_buy_order"]),
+                ParseCents(json["lowest_sell_order"]),
+                ParseGraph(json["buy_order_graph"]),
+                ParseGraph(json["sell_order_graph"]));
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    public async Task<BuyOrderResult> CreateBuyOrderAsync(uint appId, string hashName, long priceTotalCents, int quantity, MarketCurrency currency, CancellationToken cancellationToken = default)
+    {
+        var form = new Dictionary<string, string?>
+        {
+            ["currency"] = ((int)currency).ToString(CultureInfo.InvariantCulture),
+            ["appid"] = appId.ToString(CultureInfo.InvariantCulture),
+            ["market_hash_name"] = hashName,
+            ["price_total"] = priceTotalCents.ToString(CultureInfo.InvariantCulture),
+            ["tradefee_tax"] = "0",
+            ["quantity"] = quantity.ToString(CultureInfo.InvariantCulture),
+            ["first_name"] = string.Empty,
+            ["last_name"] = string.Empty,
+            ["billing_address"] = string.Empty,
+            ["billing_address_two"] = string.Empty,
+            ["billing_country"] = string.Empty,
+            ["billing_city"] = string.Empty,
+            ["billing_state"] = string.Empty,
+            ["billing_postal_code"] = string.Empty,
+            ["save_my_address"] = "0",
+            ["confirmation"] = "0"
+        };
+
+        try
+        {
+            var json = await _web.PostFormAsync(ListingUrl(appId, hashName), ListingUrl(appId, hashName), form, true, cancellationToken);
+
+            if (json?["success"]?.GetValue<long>() == 1)
+            {
+                return new BuyOrderResult(
+                    true,
+                    string.Empty,
+                    (ulong)ToLong(json["buy_orderid"]));
+            }
+
+            var message = json?["message"]?.GetValue<string>();
+
+            return new BuyOrderResult(
+                false,
+                string.IsNullOrWhiteSpace(message) ? "Steam не принял ордер. Проверьте цену и попробуйте позже." : message,
+                0);
+        }
+        catch (HttpRequestException)
+        {
+            return new BuyOrderResult(false, "Steam отклонил запрос. Проверьте соединение и попробуйте снова.", 0);
+        }
+        catch (InvalidOperationException)
+        {
+            return new BuyOrderResult(false, "Сессия недоступна для создания ордера", 0);
+        }
+    }
+
+    public async Task<long?> GetItemNameIdAsync(uint appId, string hashName, CancellationToken cancellationToken = default)
+    {
+        var key = $"{appId}/{hashName}";
+
+        if (_nameIds.TryGetValue(key, out var cached))
+            return cached;
+
+        try
+        {
+            var html = await _web.GetSessionCommunityTextAsync(ListingUrl(appId, hashName), cancellationToken);
+            var match = html == null ? null : NameIdClassic.Match(html);
+
+            if (match == null || !match.Success)
+                match = html == null ? null : NameIdJson.Match(html);
+
+            var value = match is { Success: true } ? long.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : 0;
+            var result = value > 0 ? value : (long?)null;
+
+            _nameIds[key] = result;
+            return result;
+        }
+        catch (HttpRequestException)
+        {
+            return null;
+        }
+    }
+
+    private static string ListingUrl(uint appId, string hashName) =>
+        $"https://steamcommunity.com/market/listings/{appId}/{Uri.EscapeDataString(hashName)}";
+
+    private static long? ParseCents(JsonNode? node)
+    {
+        var text = node?.ToString();
+
+        return long.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var value) && value > 0 ? value : null;
+    }
+
+    private static List<MarketOrderRow> ParseGraph(JsonNode? node)
+    {
+        var rows = new List<MarketOrderRow>();
+
+        if (node is not JsonArray array)
+            return rows;
+
+        foreach (var row in array.OfType<JsonArray>())
+        {
+            var price = row.Count > 0 ? ToLong(row[0]) : 0;
+            var quantity = row.Count > 1 ? ToLong(row[1]) : 0;
+
+            if (price > 0 && quantity > 0)
+                rows.Add(new MarketOrderRow(price, quantity));
+        }
+
+        return rows;
     }
 
     public async Task<bool> CancelListingAsync(ulong listingId, CancellationToken cancellationToken = default)

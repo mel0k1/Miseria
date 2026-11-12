@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,6 +12,8 @@ namespace Miseria.App.ViewModels;
 public partial class MarketViewModel : ObservableObject
 {
     private const int PageSize = 25;
+
+    private const long MinOrderPrice = 3;
 
     private readonly MarketService _market;
     private readonly ItemIconCache _icons;
@@ -75,7 +78,34 @@ public partial class MarketViewModel : ObservableObject
     [ObservableProperty]
     private string _listingsEmptyText = string.Empty;
 
+    [ObservableProperty]
+    private bool _isOrderPanelOpen;
+
+    [ObservableProperty]
+    private string _orderPriceInput = string.Empty;
+
+    [ObservableProperty]
+    private string _orderQuantityInput = "1";
+
+    [ObservableProperty]
+    private string _orderTotalText = string.Empty;
+
+    [ObservableProperty]
+    private string _orderMessage = string.Empty;
+
+    [ObservableProperty]
+    private string _orderBookSummary = string.Empty;
+
+    [ObservableProperty]
+    private bool _isSubmittingOrder;
+
+    private MarketOrderBook? _orderBook;
+
     public bool HasResults => Results.Count > 0;
+
+    public bool CanSubmitOrder => !IsSubmittingOrder
+        && TryParsePriceToCents(OrderPriceInput, out var price) && price >= MinOrderPrice
+        && long.TryParse(OrderQuantityInput.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var quantity) && quantity is >= 1 and <= 9999;
 
     public MarketViewModel(MarketService market, ItemIconCache icons)
     {
@@ -96,6 +126,12 @@ public partial class MarketViewModel : ObservableObject
         _selectedCurrency = Currencies[0];
 
         Results.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasResults));
+
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(IsSubmittingOrder) or nameof(OrderPriceInput) or nameof(OrderQuantityInput))
+                OnPropertyChanged(nameof(CanSubmitOrder));
+        };
     }
 
     public async Task EnsureLoadedAsync()
@@ -224,6 +260,7 @@ public partial class MarketViewModel : ObservableObject
     partial void OnSelectedItemChanged(MarketItem? value)
     {
         HasDetail = false;
+        ResetOrderPanel();
 
         if (value != null)
             _ = LoadDetailAsync(value);
@@ -298,6 +335,160 @@ public partial class MarketViewModel : ObservableObject
         {
             item.IsBusy = false;
         }
+    }
+
+    [RelayCommand]
+    private void StartBuyOrder()
+    {
+        var item = SelectedItem;
+        var appId = item != null && item.AppId != 0 ? item.AppId : SelectedApp?.AppId ?? 0;
+
+        if (item == null || appId == 0 || item.HashName.Length == 0)
+        {
+            OrderMessage = "Выберите предмет из поиска, чтобы создать ордер";
+            return;
+        }
+
+        _orderBook = null;
+        OrderMessage = string.Empty;
+        OrderBookSummary = "Загрузка книги ордеров…";
+        OrderQuantityInput = "1";
+        OrderPriceInput = string.Empty;
+        IsOrderPanelOpen = true;
+        _ = LoadOrderBookAsync(appId, item.HashName);
+    }
+
+    [RelayCommand]
+    private void CancelOrderPanel() => ResetOrderPanel();
+
+    [RelayCommand]
+    private async Task SubmitBuyOrderAsync(CancellationToken cancellationToken = default)
+    {
+        var item = SelectedItem;
+        var appId = item != null && item.AppId != 0 ? item.AppId : SelectedApp?.AppId ?? 0;
+
+        if (item == null || appId == 0 || item.HashName.Length == 0)
+            return;
+
+        if (!TryParsePriceToCents(OrderPriceInput, out var price) || price < MinOrderPrice)
+        {
+            OrderMessage = "Введите цену не меньше 0,03";
+            return;
+        }
+
+        if (!long.TryParse(OrderQuantityInput.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var quantity) || quantity is < 1 or > 9999)
+        {
+            OrderMessage = "Количество должно быть от 1 до 9999";
+            return;
+        }
+
+        IsSubmittingOrder = true;
+        OrderMessage = "Отправка ордера…";
+
+        try
+        {
+            var result = await _market.CreateBuyOrderAsync(appId, item.HashName, price * quantity, (int)quantity, SelectedCurrency?.Currency ?? MarketCurrency.Usd, cancellationToken);
+
+            if (result.Success)
+            {
+                OrderMessage = string.Empty;
+                StatusText = result.OrderId == 0
+                    ? "Ордер на покупку создан"
+                    : $"Ордер на покупку {result.OrderId} создан";
+                ListingsSummary = $"Ордер на {item.Name} создан. Он появится в разделе «Мои объявления»";
+                ResetOrderPanel();
+                await RefreshListingsAsync(cancellationToken);
+            }
+            else
+            {
+                OrderMessage = result.Message;
+            }
+        }
+        finally
+        {
+            IsSubmittingOrder = false;
+        }
+    }
+
+    partial void OnOrderPriceInputChanged(string value) => RecomputeOrderTotal();
+
+    partial void OnOrderQuantityInputChanged(string value) => RecomputeOrderTotal();
+
+    private async Task LoadOrderBookAsync(uint appId, string hashName)
+    {
+        var currency = SelectedCurrency?.Currency ?? MarketCurrency.Usd;
+        var book = await _market.GetOrderBookAsync(appId, hashName, currency);
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (!IsOrderPanelOpen)
+                return;
+
+            _orderBook = book;
+
+            if (book == null)
+            {
+                OrderBookSummary = "Книга ордеров недоступна для этого предмета, введите цену вручную";
+                return;
+            }
+
+            var buy = book.HighestBuyOrderCents == null ? "—" : currency.Format(book.HighestBuyOrderCents.Value);
+            var sell = book.LowestSellOrderCents == null ? "—" : currency.Format(book.LowestSellOrderCents.Value);
+            OrderBookSummary = $"Лучшая заявка: {buy} · Продажа от: {sell}";
+
+            var prefill = book.LowestSellOrderCents ?? book.HighestBuyOrderCents;
+
+            if (prefill != null && OrderPriceInput.Length == 0)
+                OrderPriceInput = (prefill.Value / 100d).ToString("0.00", CultureInfo.InvariantCulture);
+        });
+    }
+
+    private void RecomputeOrderTotal()
+    {
+        if (!TryParsePriceToCents(OrderPriceInput, out var price))
+        {
+            OrderTotalText = string.Empty;
+            return;
+        }
+
+        if (!long.TryParse(OrderQuantityInput.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var quantity))
+        {
+            OrderTotalText = string.Empty;
+            return;
+        }
+
+        var currency = SelectedCurrency?.Currency ?? MarketCurrency.Usd;
+        OrderTotalText = $"Итого: {currency.Format(price * quantity)}";
+    }
+
+    private void ResetOrderPanel()
+    {
+        IsOrderPanelOpen = false;
+        _orderBook = null;
+        OrderMessage = string.Empty;
+        OrderBookSummary = string.Empty;
+        OrderTotalText = string.Empty;
+        OrderPriceInput = string.Empty;
+        OrderQuantityInput = "1";
+    }
+
+    private static bool TryParsePriceToCents(string text, out long cents)
+    {
+        cents = 0;
+
+        var normalized = text.Trim().Replace(" ", string.Empty).Replace(',', '.');
+        var trimmed = normalized.TrimEnd('.', '0');
+
+        if (trimmed.Length == 0 || !double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            return false;
+
+        var rounded = (long)Math.Round(value * 100d);
+
+        if (rounded <= 0)
+            return false;
+
+        cents = rounded;
+        return true;
     }
 
     private void ShowListingsError()
