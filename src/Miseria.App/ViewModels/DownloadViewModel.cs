@@ -23,13 +23,37 @@ public sealed record BranchOption(BranchInfo Info)
     }
 }
 
+public partial class UpdateItem : ObservableObject
+{
+    public UpdateItem(uint appId, string name, string status, bool isAvailable)
+    {
+        AppId = appId;
+        Name = name;
+        _statusText = status;
+        _isUpdateAvailable = isAvailable;
+    }
+
+    public uint AppId { get; }
+
+    public string Name { get; }
+
+    [ObservableProperty]
+    private string _statusText;
+
+    [ObservableProperty]
+    private bool _isUpdateAvailable;
+}
+
 public partial class DownloadViewModel : ObservableObject
 {
     private readonly SteamSession _session;
     private readonly InstallStore _installs;
+    private readonly ManifestStore _manifests;
     private SteamDownloader? _downloader;
     private CancellationTokenSource? _cancellation;
     private uint _appId;
+    private string? _usedPassword;
+    private bool _isUpdateRun;
 
     [ObservableProperty]
     private bool _hasContent;
@@ -45,6 +69,12 @@ public partial class DownloadViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isLoadingBranches;
+
+    [ObservableProperty]
+    private bool _hasInstalls;
+
+    [ObservableProperty]
+    private bool _isCheckingUpdates;
 
     [ObservableProperty]
     private string _appName = string.Empty;
@@ -65,6 +95,9 @@ public partial class DownloadViewModel : ObservableObject
     private string _destinationPreview = string.Empty;
 
     [ObservableProperty]
+    private string _updatesStatus = string.Empty;
+
+    [ObservableProperty]
     private double _progressPercent;
 
     [ObservableProperty]
@@ -75,16 +108,29 @@ public partial class DownloadViewModel : ObservableObject
 
     public ObservableCollection<BranchOption> Branches { get; } = [];
 
+    public ObservableCollection<UpdateItem> Updates { get; } = [];
+
     public bool NeedsPassword => SelectedBranch?.Info.PasswordRequired == true;
 
     public bool HasDestination => DestinationText.Length > 0;
 
     public event Action? Started;
 
-    public DownloadViewModel(SteamSession session, InstallStore installs)
+    public DownloadViewModel(SteamSession session, InstallStore installs, ManifestStore manifests)
     {
         _session = session;
         _installs = installs;
+        _manifests = manifests;
+        _hasInstalls = installs.Installs.Count > 0;
+
+        _installs.Changed += () => Dispatcher.UIThread.Post(() => HasInstalls = _installs.Installs.Count > 0);
+        _session.LoggedIn += account => Dispatcher.UIThread.Post(() =>
+        {
+            HasInstalls = _installs.Installs.Count > 0;
+
+            if (HasInstalls)
+                _ = CheckUpdatesAsync();
+        });
     }
 
     partial void OnDestinationTextChanged(string value) => OnPropertyChanged(nameof(HasDestination));
@@ -98,6 +144,8 @@ public partial class DownloadViewModel : ObservableObject
             return;
 
         _appId = app.AppId;
+        _usedPassword = null;
+        _isUpdateRun = false;
         HasContent = true;
         IsPicking = true;
         IsActive = false;
@@ -143,6 +191,8 @@ public partial class DownloadViewModel : ObservableObject
         var branch = SelectedBranch.Info.Name;
         var password = SelectedBranch.Info.PasswordRequired ? BranchPassword : null;
 
+        _usedPassword = password;
+        _isUpdateRun = false;
         IsPicking = false;
         IsActive = true;
         IsPreparing = true;
@@ -152,25 +202,104 @@ public partial class DownloadViewModel : ObservableObject
         DestinationText = string.Empty;
         ProgressPercent = 0;
 
-        var destination = BuildDestination(_appId);
+        RunDownload(null, BuildDestination(_appId), branch);
+    }
 
-        _downloader?.Dispose();
-        _downloader = _session.CreateDownloader();
-        _downloader.Started += start => Dispatcher.UIThread.Post(() => OnStarted(start));
-        _downloader.Progress += progress => Dispatcher.UIThread.Post(() => OnProgress(progress));
-        _downloader.Finished += finish => Dispatcher.UIThread.Post(() => OnFinished(finish));
+    [RelayCommand]
+    private void UpdateApp(UpdateItem? item)
+    {
+        if (item == null || IsActive || IsCheckingUpdates)
+            return;
 
-        _cancellation = new CancellationTokenSource();
-        var token = _cancellation.Token;
-        var appId = _appId;
+        var install = _installs.Installs.FirstOrDefault(i => i.AppId == item.AppId);
+        var record = install == null ? null : _manifests.TryGet(item.AppId);
 
-        _ = Task.Run(async () =>
+        if (install == null || record == null)
         {
-            var result = await _downloader.DownloadAsync(appId, destination, branch, password, token);
+            item.StatusText = "Нет сохранённых манифестов — переустановите игру";
+            return;
+        }
 
-            if (result != null)
-                RegisterInstall(result);
-        });
+        _appId = item.AppId;
+        _usedPassword = install.BetaPassword;
+        _isUpdateRun = true;
+        HasContent = true;
+        IsPicking = false;
+        IsActive = true;
+        IsPreparing = true;
+        AppName = item.Name;
+        StatusText = "Получение манифестов";
+        ProgressText = string.Empty;
+        SpeedText = string.Empty;
+        DestinationText = string.Empty;
+        ProgressPercent = 0;
+
+        RunDownload(record, install.Directory, install.Branch);
+    }
+
+    [RelayCommand]
+    private async Task CheckUpdatesAsync()
+    {
+        if (IsCheckingUpdates || IsActive)
+            return;
+
+        IsCheckingUpdates = true;
+        UpdatesStatus = string.Empty;
+
+        try
+        {
+            var installs = _installs.Installs.ToList();
+            var checks = await Task.Run(async () =>
+            {
+                var results = new List<(InstalledApp Install, UpdateCheck Check)>();
+
+                using var downloader = _session.CreateDownloader();
+
+                foreach (var install in installs)
+                {
+                    var record = _manifests.TryGet(install.AppId);
+                    UpdateCheck check;
+
+                    if (record == null)
+                    {
+                        check = new UpdateCheck(install.AppId, install.Name, install.Branch, UpdateStatus.Failed, 0, 0, 0, "Нет сохранённых манифестов");
+                    }
+                    else
+                    {
+                        try
+                        {
+                            check = await downloader.CheckUpdateAsync(install.AppId, record, install.BetaPassword, CancellationToken.None);
+                        }
+                        catch (Exception ex)
+                        {
+                            check = new UpdateCheck(install.AppId, install.Name, install.Branch, UpdateStatus.Failed, 0, 0, 0, ex.Message);
+                        }
+                    }
+
+                    results.Add((install, check));
+                }
+
+                return results;
+            });
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Updates.Clear();
+
+                foreach (var (install, check) in checks)
+                    Updates.Add(BuildUpdateItem(install, check));
+
+                UpdatesStatus = checks.Count == 0 ? string.Empty : $"Проверено игр: {checks.Count}";
+            });
+        }
+        catch
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => UpdatesStatus = "Не удалось проверить обновления");
+        }
+        finally
+        {
+            IsCheckingUpdates = false;
+        }
     }
 
     [RelayCommand]
@@ -181,6 +310,33 @@ public partial class DownloadViewModel : ObservableObject
 
         StatusText = "Отмена загрузки…";
         _cancellation?.Cancel();
+    }
+
+    private void RunDownload(ManifestRecord? previous, string destination, string branch)
+    {
+        _downloader?.Dispose();
+        _downloader = _session.CreateDownloader();
+        _downloader.Started += start => Dispatcher.UIThread.Post(() => OnStarted(start));
+        _downloader.Progress += progress => Dispatcher.UIThread.Post(() => OnProgress(progress));
+        _downloader.Finished += finish => Dispatcher.UIThread.Post(() => OnFinished(finish));
+
+        _cancellation = new CancellationTokenSource();
+        var token = _cancellation.Token;
+        var appId = _appId;
+        var password = _usedPassword;
+        var downloader = _downloader;
+
+        _ = Task.Run(async () =>
+        {
+            var result = await downloader.DownloadAsync(appId, destination, branch, password, token, previous);
+
+            if (result == null)
+                return;
+
+            _manifests.Save(result.Manifest);
+            RegisterInstall(result);
+            await RefreshUpdateItemAsync(appId);
+        });
     }
 
     private void RegisterInstall(DownloadResult result)
@@ -195,7 +351,81 @@ public partial class DownloadViewModel : ObservableObject
             result.TotalBytes,
             DateTime.Now,
             launch?.Executable,
-            launch?.Arguments)));
+            launch?.Arguments,
+            _usedPassword)));
+    }
+
+    private async Task RefreshUpdateItemAsync(uint appId)
+    {
+        try
+        {
+            var install = _installs.Installs.FirstOrDefault(i => i.AppId == appId);
+            var record = install == null ? null : _manifests.TryGet(appId);
+            UpdateItem item;
+
+            if (install == null || record == null)
+            {
+                item = new UpdateItem(appId, install?.Name ?? appId.ToString(), "Не удалось проверить обновления", false);
+            }
+            else
+            {
+                using var downloader = _session.CreateDownloader();
+                UpdateCheck check;
+
+                try
+                {
+                    check = await downloader.CheckUpdateAsync(appId, record, install.BetaPassword, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    check = new UpdateCheck(appId, install.Name, install.Branch, UpdateStatus.Failed, 0, 0, 0, ex.Message);
+                }
+
+                item = BuildUpdateItem(install, check);
+            }
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                var existing = Updates.FirstOrDefault(u => u.AppId == appId);
+
+                if (existing != null)
+                {
+                    existing.StatusText = item.StatusText;
+                    existing.IsUpdateAvailable = item.IsUpdateAvailable;
+                }
+                else
+                {
+                    Updates.Add(item);
+                }
+            });
+        }
+        catch
+        {
+        }
+    }
+
+    private static UpdateItem BuildUpdateItem(InstalledApp install, UpdateCheck check) => check.Status switch
+    {
+        UpdateStatus.UpToDate => new UpdateItem(check.AppId, install.Name, $"Актуальная версия · ветка {check.Branch}", false),
+        UpdateStatus.Available => new UpdateItem(check.AppId, install.Name, DescribeUpdate(check), true),
+        UpdateStatus.PasswordRequired => new UpdateItem(check.AppId, install.Name, $"Обновление доступно, но ветка {check.Branch} защищена паролем", false),
+        _ => new UpdateItem(check.AppId, install.Name, $"Не удалось проверить: {check.Message}", false)
+    };
+
+    private static string DescribeUpdate(UpdateCheck check)
+    {
+        var parts = new List<string> { "Обновление доступно" };
+
+        if (check.DownloadBytes > 0)
+            parts.Add(FormatBytes(check.DownloadBytes));
+
+        if (check.ChangedFiles > 0)
+            parts.Add($"файлов: {check.ChangedFiles}");
+
+        if (check.RemovedFiles > 0)
+            parts.Add($"на удаление: {check.RemovedFiles}");
+
+        return string.Join(" · ", parts);
     }
 
     private async Task LoadBranchesAsync(uint appId)
@@ -266,7 +496,7 @@ public partial class DownloadViewModel : ObservableObject
             case DownloadFinishKind.Completed:
                 ProgressPercent = 100;
                 ProgressText = $"{FormatBytes(finish.TotalBytes)} загружено";
-                StatusText = "Загрузка завершена";
+                StatusText = _isUpdateRun ? "Обновление установлено" : "Загрузка завершена";
                 break;
             case DownloadFinishKind.Cancelled:
                 StatusText = "Загрузка отменена";

@@ -18,6 +18,7 @@ Early development. What works now:
 - Branch picker for downloads: every depot branch is listed with its build id, password-protected beta branches unlock through the private beta PICS request
 - Family View awareness: locked accounts are detected at logon and the session can be unlocked with the Family View PIN through Steam's Parental service
 - Install tracking and game launch: finished downloads are registered as installed apps and get a Play button that starts the executable from the app's launch config (Wine is used automatically for Windows games on Linux)
+- Manifest-diff updates: every install records its depot manifests, a check compares them with the current manifests on Steam and an update redownloads only the files whose hashes changed and deletes removed files
 - Automatic re-logon between launches: the refresh token is saved and reused, no password prompt until the session expires
 - Session status and logoff (logoff deletes the stored session)
 - Four themes: Light, Dark, Crimson and Kiwi
@@ -68,13 +69,9 @@ src/Miseria.Core    SteamKit2 session: connect, authenticate, guard prompts, fri
 src/Miseria.App     Avalonia UI: MVVM view models, FluentAvalonia shell, theming
 ```
 
-`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`, `LibraryLoaded`, `SteamDownloader` with `GetBranchesAsync` / `DownloadAsync` and `Started`, `Progress`, `Finished` events, and `UnlockFamilyViewAsync` for the Family View PIN.
+`Miseria.Core` is the only place that touches SteamKit2 types. The UI talks to it through plain events and records: `LogOnAsync`, `GuardRequested`, `LoggedIn`, `LogonFailed`, `LoggedOut`, `FriendsLoaded`, `FriendUpdated`, `LibraryLoaded`, `SteamDownloader` with `GetBranchesAsync` / `DownloadAsync` / `CheckUpdateAsync`, the `Started`, `Progress`, `Finished` events and the `ManifestRecord` / `UpdateCheck` records, and `UnlockFamilyViewAsync` for the Family View PIN.
 
-Downloads are written to `~/Miseria/games/<appid>`, resumed by file size when restarted and registered in `%APPDATA%\Miseria\installs.json`, which drives the Play buttons in the library.
-
-## Roadmap
-
-- Update checks for installed games: diff manifests and redownload changed files only
+Downloads are written to `~/Miseria/games/<appid>`, resumed by file size when restarted and registered in `%APPDATA%\Miseria\installs.json`, which drives the Play buttons in the library. Every install also writes `%APPDATA%\Miseria\manifests\appmanifest_<appid>.json` with the depot manifest ids and per-file hashes; the updates tab diffs it against Steam on request and only replaces files whose hash actually changed.
 
 ## Notes
 

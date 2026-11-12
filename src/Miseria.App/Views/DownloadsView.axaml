@@ -6,120 +6,186 @@
     <Grid RowDefinitions="Auto,*"
           RowSpacing="16"
           Margin="28,24,28,16">
-        <StackPanel Grid.Row="0" Spacing="2">
-            <TextBlock Text="Загрузки"
-                       FontSize="24"
-                       FontWeight="SemiBold" />
-            <TextBlock Text="Файлы загружаются напрямую из Steam CDN"
-                       FontSize="12"
-                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-        </StackPanel>
-        <Panel Grid.Row="1">
-            <StackPanel IsVisible="{Binding !HasContent}"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Spacing="8">
-                <TextBlock Text="Нет загрузок"
-                           HorizontalAlignment="Center"
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="16">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Загрузки"
+                           FontSize="24"
                            FontWeight="SemiBold" />
-                <TextBlock Text="Нажмите кнопку скачивания напротив игры в библиотеке"
-                           HorizontalAlignment="Center"
+                <TextBlock Text="Файлы загружаются напрямую из Steam CDN"
+                           FontSize="12"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
             </StackPanel>
-            <Border IsVisible="{Binding HasContent}"
-                    MaxWidth="640"
-                    VerticalAlignment="Top"
-                    HorizontalAlignment="Stretch"
-                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="8"
-                    Padding="24,20">
-                <Panel>
-                    <StackPanel IsVisible="{Binding IsPicking}" Spacing="10">
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Spacing="12">
+                <ProgressBar IsIndeterminate="True"
+                             IsVisible="{Binding IsCheckingUpdates}"
+                             Width="120"
+                             Height="2"
+                             VerticalAlignment="Center" />
+                <Button Command="{Binding CheckUpdatesCommand}"
+                        VerticalAlignment="Center"
+                        Content="Проверить обновления" />
+            </StackPanel>
+        </Grid>
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16">
+                <Border IsVisible="{Binding HasInstalls}"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24,20">
+                    <StackPanel Spacing="10">
                         <Grid ColumnDefinitions="*,Auto"
                               ColumnSpacing="12">
-                            <TextBlock Text="{Binding AppName}"
-                                       FontSize="18"
+                            <TextBlock Text="Обновления"
+                                       FontSize="16"
                                        FontWeight="SemiBold"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-                            <Button Grid.Column="1"
-                                    Command="{Binding HidePickerCommand}"
-                                    Content="Отмена" />
-                        </Grid>
-                        <TextBlock Text="Ветка загрузки"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <ComboBox ItemsSource="{Binding Branches}"
-                                  SelectedItem="{Binding SelectedBranch}"
-                                  HorizontalAlignment="Stretch"
-                                  IsVisible="{Binding !IsLoadingBranches}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:BranchOption">
-                                    <TextBlock Text="{Binding Display}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <ProgressBar IsIndeterminate="True"
-                                     IsVisible="{Binding IsLoadingBranches}"
-                                     Height="2" />
-                        <TextBox Text="{Binding BranchPassword}"
-                                 PasswordChar="●"
-                                 PlaceholderText="Пароль ветки"
-                                 IsVisible="{Binding NeedsPassword}" />
-                        <Button Command="{Binding BeginDownloadCommand}"
-                                Classes="accent"
-                                HorizontalAlignment="Stretch"
-                                Content="Начать загрузку" />
-                        <TextBlock Text="{Binding StatusText}"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
-                        <TextBlock Text="{Binding DestinationPreview}"
-                                   FontSize="12"
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    </StackPanel>
-                    <StackPanel IsVisible="{Binding !IsPicking}" Spacing="10">
-                        <Grid ColumnDefinitions="*,Auto"
-                              ColumnSpacing="12">
-                            <TextBlock Text="{Binding AppName}"
-                                       FontSize="18"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis" />
-                            <Button Grid.Column="1"
-                                    Command="{Binding CancelCommand}"
-                                    IsVisible="{Binding IsActive}"
-                                    Content="Отмена" />
-                        </Grid>
-                        <ProgressBar Value="{Binding ProgressPercent}"
-                                     IsIndeterminate="{Binding IsPreparing}"
-                                     Maximum="100"
-                                     Height="4" />
-                        <Grid ColumnDefinitions="*,Auto"
-                              ColumnSpacing="12">
-                            <TextBlock Text="{Binding ProgressText}"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                       VerticalAlignment="Center" />
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding SpeedText}"
+                                       Text="{Binding UpdatesStatus}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        </Grid>
+                        <ItemsControl ItemsSource="{Binding Updates}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:UpdateItem">
+                                    <Grid ColumnDefinitions="*,Auto"
+                                          ColumnSpacing="12"
+                                          Margin="0,6">
+                                        <StackPanel Spacing="2"
+                                                    VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontWeight="SemiBold"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding StatusText}"
+                                                       FontSize="12"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1"
+                                                IsVisible="{Binding IsUpdateAvailable}"
+                                                Classes="accent"
+                                                VerticalAlignment="Center"
+                                                Content="Обновить"
+                                                Command="{Binding $parent[UserControl].DataContext.UpdateAppCommand}"
+                                                CommandParameter="{Binding}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+                <Border IsVisible="{Binding HasContent}"
+                        MaxWidth="640"
+                        HorizontalAlignment="Stretch"
+                        Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="24,20">
+                    <Panel>
+                        <StackPanel IsVisible="{Binding IsPicking}" Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <TextBlock Text="{Binding AppName}"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1"
+                                        Command="{Binding HidePickerCommand}"
+                                        Content="Отмена" />
+                            </Grid>
+                            <TextBlock Text="Ветка загрузки"
                                        FontSize="12"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        </Grid>
-                        <TextBlock Text="{Binding StatusText}"
-                                   FontSize="12"
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <TextBlock Text="{Binding DestinationText}"
-                                   FontSize="12"
-                                   IsVisible="{Binding HasDestination}"
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
-                    </StackPanel>
-                </Panel>
-            </Border>
-        </Panel>
+                            <ComboBox ItemsSource="{Binding Branches}"
+                                      SelectedItem="{Binding SelectedBranch}"
+                                      HorizontalAlignment="Stretch"
+                                      IsVisible="{Binding !IsLoadingBranches}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:BranchOption">
+                                        <TextBlock Text="{Binding Display}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <ProgressBar IsIndeterminate="True"
+                                         IsVisible="{Binding IsLoadingBranches}"
+                                         Height="2" />
+                            <TextBox Text="{Binding BranchPassword}"
+                                     PasswordChar="●"
+                                     PlaceholderText="Пароль ветки"
+                                     IsVisible="{Binding NeedsPassword}" />
+                            <Button Command="{Binding BeginDownloadCommand}"
+                                    Classes="accent"
+                                    HorizontalAlignment="Stretch"
+                                    Content="Начать загрузку" />
+                            <TextBlock Text="{Binding StatusText}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource SystemFillColorCriticalBrush}" />
+                            <TextBlock Text="{Binding DestinationPreview}"
+                                       FontSize="12"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+                        <StackPanel IsVisible="{Binding !IsPicking}" Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <TextBlock Text="{Binding AppName}"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1"
+                                        Command="{Binding CancelCommand}"
+                                        IsVisible="{Binding IsActive}"
+                                        Content="Отмена" />
+                            </Grid>
+                            <ProgressBar Value="{Binding ProgressPercent}"
+                                         IsIndeterminate="{Binding IsPreparing}"
+                                         Maximum="100"
+                                         Height="4" />
+                            <Grid ColumnDefinitions="*,Auto"
+                                  ColumnSpacing="12">
+                                <TextBlock Text="{Binding ProgressText}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding SpeedText}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </Grid>
+                            <TextBlock Text="{Binding StatusText}"
+                                       FontSize="12"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="{Binding DestinationText}"
+                                       FontSize="12"
+                                       IsVisible="{Binding HasDestination}"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" />
+                        </StackPanel>
+                    </Panel>
+                </Border>
+                <StackPanel IsVisible="{Binding !HasContent}"
+                            HorizontalAlignment="Center"
+                            Margin="0,48,0,16"
+                            Spacing="8">
+                    <TextBlock Text="Нет загрузок"
+                               HorizontalAlignment="Center"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="Нажмите кнопку скачивания напротив игры в библиотеке"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </UserControl>

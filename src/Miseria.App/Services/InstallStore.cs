@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace Miseria.App.Services;
 
-public sealed record InstalledApp(uint AppId, string Name, string Branch, string Directory, ulong TotalBytes, DateTime InstalledAt, string? Executable, string? Arguments);
+public sealed record InstalledApp(uint AppId, string Name, string Branch, string Directory, ulong TotalBytes, DateTime InstalledAt, string? Executable, string? Arguments, string? BetaPassword = null);
 
 public sealed class InstallStore
 {
@@ -26,7 +26,7 @@ public sealed class InstallStore
 
         if (found == null)
         {
-            install = new InstalledApp(0, string.Empty, string.Empty, string.Empty, 0, default, null, null);
+            install = new InstalledApp(0, string.Empty, string.Empty, string.Empty, 0, default, null, null, null);
             return false;
         }
 

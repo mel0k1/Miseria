@@ -22,13 +22,29 @@ public sealed record BranchInfo(string Name, bool PasswordRequired, uint BuildId
 
 public sealed record LaunchOption(string Executable, string Arguments, string OsList);
 
-public sealed record DownloadResult(uint AppId, string AppName, string Branch, string DestinationPath, ulong TotalBytes, IReadOnlyList<LaunchOption> LaunchOptions);
+public sealed record ManifestFileInfo(string Path, ulong Size, string Hash);
+
+public sealed record DepotManifestInfo(uint DepotId, ulong ManifestId, IReadOnlyList<ManifestFileInfo> Files);
+
+public sealed record ManifestRecord(uint AppId, string Branch, IReadOnlyList<DepotManifestInfo> Depots);
+
+public enum UpdateStatus
+{
+    UpToDate,
+    Available,
+    PasswordRequired,
+    Failed
+}
+
+public sealed record UpdateCheck(uint AppId, string Name, string Branch, UpdateStatus Status, int ChangedFiles, int RemovedFiles, ulong DownloadBytes, string Message);
+
+public sealed record DownloadResult(uint AppId, string AppName, string Branch, string DestinationPath, ulong TotalBytes, IReadOnlyList<LaunchOption> LaunchOptions, ManifestRecord Manifest);
 
 public sealed class SteamDownloader : IDisposable
 {
     private sealed record Depot(uint DepotId, ulong ManifestId, byte[] DepotKey);
 
-    private sealed record PreparedFile(uint DepotId, byte[] DepotKey, string FileName, ulong TotalSize, string? LinkTarget, IReadOnlyList<DepotManifest.ChunkData> Chunks);
+    private sealed record PreparedFile(uint DepotId, byte[] DepotKey, string FileName, ulong TotalSize, string FileHash, string? LinkTarget, IReadOnlyList<DepotManifest.ChunkData> Chunks);
 
     private readonly SteamClient _client;
     private readonly SteamApps _apps;
@@ -69,20 +85,121 @@ public sealed class SteamDownloader : IDisposable
         return branches;
     }
 
-    public async Task<DownloadResult?> DownloadAsync(uint appId, string destination, string branch, string? betaPassword, CancellationToken cancellationToken)
+    public async Task<UpdateCheck> CheckUpdateAsync(uint appId, ManifestRecord previous, string? betaPassword, CancellationToken cancellationToken)
+    {
+        var appName = appId.ToString();
+
+        try
+        {
+            var (info, accessToken) = await GetAppInfoAsync(appId, cancellationToken);
+            appName = info["common"]["name"].AsString() ?? appName;
+            var branch = previous.Branch;
+            var branchNode = info["depots"]["branches"][branch];
+
+            if (branchNode["buildid"].Value == null)
+                return new UpdateCheck(appId, appName, branch, UpdateStatus.Failed, 0, 0, 0, $"Ветка «{branch}» не найдена");
+
+            KeyValue? betaSection = null;
+
+            if (branchNode["pwdrequired"].Value == "1")
+            {
+                if (string.IsNullOrWhiteSpace(betaPassword))
+                    return new UpdateCheck(appId, appName, branch, UpdateStatus.PasswordRequired, 0, 0, 0, "Требуется пароль ветки");
+
+                betaSection = await GetPrivateBetaAsync(appId, accessToken, branch, betaPassword, cancellationToken);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var depots = await CollectDepotsAsync(appId, info, accessToken, branch, betaSection, cancellationToken);
+            var old = previous.Depots.ToDictionary(d => d.DepotId);
+            var changed = depots
+                .Where(d => !old.TryGetValue(d.DepotId, out var known) || known.ManifestId != d.ManifestId)
+                .ToList();
+            var removedDepots = old.Values.Where(d => depots.All(c => c.DepotId != d.DepotId)).ToList();
+
+            if (changed.Count == 0 && removedDepots.Count == 0)
+                return new UpdateCheck(appId, appName, branch, UpdateStatus.UpToDate, 0, 0, 0, string.Empty);
+
+            var changedFiles = 0;
+            var removedFiles = 0;
+            var downloadBytes = 0UL;
+            var servers = await GetServersAsync(cancellationToken);
+
+            foreach (var depot in changed)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var oldFiles = old.TryGetValue(depot.DepotId, out var known) ? known.Files : [];
+                var manifest = await TryDownloadManifestAsync(depot, appId, branch, servers);
+
+                if (manifest?.Files == null)
+                {
+                    changedFiles += oldFiles.Count;
+                    downloadBytes += oldFiles.Aggregate(0UL, (sum, f) => sum + f.Size);
+                    continue;
+                }
+
+                var currentPaths = new HashSet<string>();
+
+                foreach (var file in manifest.Files)
+                {
+                    if (file.Flags.HasFlag(EDepotFileFlag.Directory))
+                        continue;
+
+                    var path = NormalizePath(file.FileName);
+                    currentPaths.Add(path);
+
+                    var knownFile = oldFiles.FirstOrDefault(f => f.Path == path);
+
+                    if (knownFile == null || knownFile.Hash != ToHex(file.FileHash) || knownFile.Size != file.TotalSize)
+                    {
+                        changedFiles++;
+                        downloadBytes += file.TotalSize;
+                    }
+                }
+
+                removedFiles += oldFiles.Count(f => !currentPaths.Contains(f.Path));
+            }
+
+            foreach (var removed in removedDepots)
+                removedFiles += removed.Files.Count;
+
+            return new UpdateCheck(appId, appName, branch, UpdateStatus.Available, changedFiles, removedFiles, downloadBytes, string.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            return new UpdateCheck(appId, appName, previous.Branch, UpdateStatus.Failed, 0, 0, 0, ex.Message);
+        }
+    }
+
+    public async Task<DownloadResult?> DownloadAsync(uint appId, string destination, string branch, string? betaPassword, CancellationToken cancellationToken, ManifestRecord? previous = null)
     {
         try
         {
-            var (files, appName, launchOptions) = await PrepareAsync(appId, branch, betaPassword, cancellationToken);
+            var (files, appName, launchOptions, manifest) = await PrepareAsync(appId, branch, betaPassword, cancellationToken);
 
             if (files.Count == 0)
                 throw new InvalidOperationException("Нет доступных для загрузки файлов. Возможно, приложение не приобретено.");
 
-            var totalBytes = files.Aggregate(0UL, (sum, f) => sum + f.TotalSize);
             var destinationPath = Path.GetFullPath(destination);
             Directory.CreateDirectory(destinationPath);
 
-            Started?.Invoke(new DownloadStart(appId, appName, totalBytes, files.Count, destinationPath));
+            foreach (var file in files)
+            {
+                if (string.IsNullOrEmpty(file.LinkTarget))
+                    continue;
+
+                CreateLink(Path.Combine(destinationPath, file.FileName), file.LinkTarget);
+            }
+
+            var plan = BuildPlan(files, previous, destinationPath);
+
+            Started?.Invoke(new DownloadStart(appId, appName, plan.TotalBytes, plan.ToDownload.Count, destinationPath));
 
             var doneBytes = 0UL;
             var stopwatch = Stopwatch.StartNew();
@@ -91,27 +208,15 @@ public sealed class SteamDownloader : IDisposable
             var speed = 0.0;
             var servers = await GetServersAsync(cancellationToken);
 
-            foreach (var (file, index) in files.Select((f, i) => (f, i)))
+            foreach (var (file, index) in plan.ToDownload.Select((f, i) => (f, i)))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-
-                if (!string.IsNullOrEmpty(file.LinkTarget))
-                {
-                    CreateLink(Path.Combine(destinationPath, file.FileName), file.LinkTarget);
-                    continue;
-                }
 
                 var targetPath = Path.Combine(destinationPath, file.FileName);
                 var directory = Path.GetDirectoryName(targetPath);
 
                 if (directory != null)
                     Directory.CreateDirectory(directory);
-
-                if (File.Exists(targetPath) && new FileInfo(targetPath).Length == (long)file.TotalSize)
-                {
-                    doneBytes += file.TotalSize;
-                    continue;
-                }
 
                 var server = servers[index % servers.Length];
                 var token = await AuthorizeAsync(appId, file.DepotId, server, cancellationToken);
@@ -142,15 +247,20 @@ public sealed class SteamDownloader : IDisposable
                         speed = speed == 0 ? instant : speed * 0.6 + instant * 0.4;
                         lastBytes = doneBytes;
                         lastTime = elapsed;
-                        Progress?.Invoke(new DownloadProgress(appId, file.FileName, doneBytes, totalBytes, speed));
+                        Progress?.Invoke(new DownloadProgress(appId, file.FileName, doneBytes, plan.TotalBytes, speed));
                     }
                 }
 
-                Progress?.Invoke(new DownloadProgress(appId, file.FileName, doneBytes, totalBytes, speed));
+                Progress?.Invoke(new DownloadProgress(appId, file.FileName, doneBytes, plan.TotalBytes, speed));
             }
 
-            Finished?.Invoke(new DownloadFinish(appId, totalBytes, DownloadFinishKind.Completed, string.Empty));
-            return new DownloadResult(appId, appName, branch, destinationPath, totalBytes, launchOptions);
+            if (previous != null)
+                DeleteRemovedFiles(previous, files, destinationPath);
+
+            Finished?.Invoke(new DownloadFinish(appId, plan.TotalBytes, DownloadFinishKind.Completed, string.Empty));
+
+            var totalSize = files.Aggregate(0UL, (sum, f) => sum + f.TotalSize);
+            return new DownloadResult(appId, appName, branch, destinationPath, totalSize, launchOptions, manifest);
         }
         catch (OperationCanceledException)
         {
@@ -168,7 +278,61 @@ public sealed class SteamDownloader : IDisposable
     {
     }
 
-    private async Task<(List<PreparedFile> Files, string AppName, IReadOnlyList<LaunchOption> LaunchOptions)> PrepareAsync(uint appId, string branch, string? betaPassword, CancellationToken cancellationToken)
+    private static (List<PreparedFile> ToDownload, ulong TotalBytes) BuildPlan(List<PreparedFile> files, ManifestRecord? previous, string destinationPath)
+    {
+        var oldFiles = previous == null
+            ? []
+            : previous.Depots.ToDictionary(d => d.DepotId, d => d.Files.ToDictionary(f => f.Path, StringComparer.Ordinal));
+        var toDownload = new List<PreparedFile>();
+
+        foreach (var file in files)
+        {
+            if (!string.IsNullOrEmpty(file.LinkTarget))
+                continue;
+
+            var targetPath = Path.Combine(destinationPath, file.FileName);
+
+            if (File.Exists(targetPath) && new FileInfo(targetPath).Length == (long)file.TotalSize)
+            {
+                if (previous == null)
+                    continue;
+
+                if (oldFiles.TryGetValue(file.DepotId, out var map)
+                    && map.TryGetValue(file.FileName, out var known)
+                    && known.Hash == file.FileHash
+                    && known.Size == file.TotalSize)
+                    continue;
+            }
+
+            toDownload.Add(file);
+        }
+
+        return (toDownload, toDownload.Aggregate(0UL, (sum, f) => sum + f.TotalSize));
+    }
+
+    private static void DeleteRemovedFiles(ManifestRecord previous, List<PreparedFile> files, string destinationPath)
+    {
+        var current = files.Select(f => (Depot: f.DepotId, Path: f.FileName)).ToHashSet();
+
+        foreach (var depot in previous.Depots)
+        {
+            foreach (var file in depot.Files)
+            {
+                if (current.Contains((depot.DepotId, file.Path)))
+                    continue;
+
+                try
+                {
+                    File.Delete(Path.Combine(destinationPath, file.Path));
+                }
+                catch
+                {
+                }
+            }
+        }
+    }
+
+    private async Task<(List<PreparedFile> Files, string AppName, IReadOnlyList<LaunchOption> LaunchOptions, ManifestRecord Manifest)> PrepareAsync(uint appId, string branch, string? betaPassword, CancellationToken cancellationToken)
     {
         var (info, accessToken) = await GetAppInfoAsync(appId, cancellationToken);
         var appName = info["common"]["name"].AsString() ?? appId.ToString();
@@ -189,6 +353,48 @@ public sealed class SteamDownloader : IDisposable
             betaSection = await GetPrivateBetaAsync(appId, accessToken, branch, betaPassword, cancellationToken);
         }
 
+        var depots = await CollectDepotsAsync(appId, info, accessToken, branch, betaSection, cancellationToken);
+        var servers = await GetServersAsync(cancellationToken);
+        var files = new List<PreparedFile>();
+
+        foreach (var (depot, index) in depots.Select((d, i) => (d, i)))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var server = servers[index % servers.Length];
+            var manifest = await TryDownloadManifestAsync(depot, appId, branch, servers);
+
+            if (manifest?.Files == null)
+                continue;
+
+            files.AddRange(manifest.Files
+                .Where(f => !f.Flags.HasFlag(EDepotFileFlag.Directory))
+                .Select(f => new PreparedFile(
+                    depot.DepotId,
+                    depot.DepotKey,
+                    NormalizePath(f.FileName),
+                    f.TotalSize,
+                    ToHex(f.FileHash),
+                    f.LinkTarget,
+                    f.Chunks)));
+        }
+
+        var manifestDepots = new List<DepotManifestInfo>();
+
+        foreach (var group in files.GroupBy(f => f.DepotId))
+        {
+            var gid = depots.First(d => d.DepotId == group.Key).ManifestId;
+            manifestDepots.Add(new DepotManifestInfo(group.Key, gid, group
+                .Select(f => new ManifestFileInfo(f.FileName, f.TotalSize, f.FileHash))
+                .ToList()));
+        }
+
+        return (files, appName, GetLaunchOptions(info), new ManifestRecord(appId, branch, manifestDepots));
+    }
+
+    private async Task<List<Depot>> CollectDepotsAsync(uint appId, KeyValue info, ulong accessToken, string branch, KeyValue? betaSection, CancellationToken cancellationToken)
+    {
+        var currentOs = OperatingSystem.IsWindows() ? "windows" : OperatingSystem.IsMacOS() ? "macos" : "linux";
         var depots = new List<Depot>();
 
         foreach (var depot in info["depots"].Children)
@@ -233,29 +439,7 @@ public sealed class SteamDownloader : IDisposable
             }
         }
 
-        var servers = await GetServersAsync(cancellationToken);
-        var files = new List<PreparedFile>();
-
-        foreach (var (depot, index) in depots.Select((d, i) => (d, i)))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var server = servers[index % servers.Length];
-            var manifest = await DownloadManifestAsync(depot, server, appId, branch, servers);
-
-            if (manifest?.Files == null)
-                continue;
-
-            files.AddRange(manifest.Files.Select(f => new PreparedFile(
-                depot.DepotId,
-                depot.DepotKey,
-                NormalizePath(f.FileName),
-                f.TotalSize,
-                f.LinkTarget,
-                f.Chunks)));
-        }
-
-        return (files, appName, GetLaunchOptions(info));
+        return depots;
     }
 
     private async Task<KeyValue> GetPrivateBetaAsync(uint appId, ulong accessToken, string branch, string password, CancellationToken cancellationToken)
@@ -335,6 +519,18 @@ public sealed class SteamDownloader : IDisposable
         return (app.KeyValues, token);
     }
 
+    private async Task<DepotManifest?> TryDownloadManifestAsync(Depot depot, uint appId, string branch, Server[] servers)
+    {
+        try
+        {
+            return await DownloadManifestAsync(depot, servers[0], appId, branch, servers);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private async Task<DepotManifest> DownloadManifestAsync(Depot depot, Server server, uint appId, string branch, Server[] servers)
     {
         ulong requestCode = 0;
@@ -398,6 +594,8 @@ public sealed class SteamDownloader : IDisposable
             }
         }
     }
+
+    private static string ToHex(byte[] hash) => Convert.ToHexString(hash).ToLowerInvariant();
 
     private static string NormalizePath(string path)
     {
