@@ -29,7 +29,7 @@ public sealed class ItemIconCache : IDisposable
         if (string.IsNullOrWhiteSpace(iconUrl))
             return Task.FromResult<Bitmap?>(null);
 
-        return _memory.GetOrAdd($"eco/{iconUrl}", LoadEconomyAsync);
+        return _memory.GetOrAdd($"eco/{iconUrl}", _ => LoadEconomyAsync(iconUrl));
     }
 
     public Task<Bitmap?> LoadUrlAsync(string? url)
@@ -37,7 +37,7 @@ public sealed class ItemIconCache : IDisposable
         if (string.IsNullOrWhiteSpace(url))
             return Task.FromResult<Bitmap?>(null);
 
-        return _memory.GetOrAdd($"url/{url}", LoadUrlCoreAsync);
+        return _memory.GetOrAdd($"url/{url}", _ => LoadUrlCoreAsync(url));
     }
 
     private async Task<Bitmap?> LoadEconomyAsync(string iconUrl)

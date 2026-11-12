@@ -67,6 +67,8 @@ public partial class TradesViewModel : ObservableObject
         await RefreshAsync();
     }
 
+    public void SuppressAutoLoad() => _loaded = true;
+
     [RelayCommand]
     private async Task RefreshAsync(CancellationToken cancellationToken = default)
     {

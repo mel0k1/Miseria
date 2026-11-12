@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Globalization;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -86,7 +85,7 @@ public partial class TradeOfferItem : ObservableObject
         HasMessage = !string.IsNullOrWhiteSpace(snapshot.Message);
         Message = snapshot.Message ?? string.Empty;
         PartnerName = $"Steam ID {PartnerId}";
-        CreatedText = snapshot.CreatedAt.ToLocalTime().ToString("d MMM H:mm", CultureInfo.GetCultureInfo("ru-RU"));
+        CreatedText = RuFormat.DayTime(snapshot.CreatedAt.ToLocalTime());
         _icons = icons;
 
         foreach (var asset in snapshot.ToGive)

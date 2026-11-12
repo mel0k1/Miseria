@@ -66,7 +66,7 @@ public sealed class MarketService
         if (appId != 0)
             args["appid"] = appId.ToString(CultureInfo.InvariantCulture);
 
-        var json = await _web.GetCommunityJsonAsync("market/search/render/", args, cancellationToken);
+        var json = await _web.GetPublicCommunityJsonAsync("market/search/render/", args, cancellationToken);
         var items = new List<MarketItemSnapshot>();
         var total = json?["total_count"]?.GetValue<int>() ?? 0;
 
@@ -103,7 +103,7 @@ public sealed class MarketService
             ["currency"] = ((int)currency).ToString(CultureInfo.InvariantCulture)
         };
 
-        var json = await _web.GetCommunityJsonAsync("market/priceoverview/", args, cancellationToken);
+        var json = await _web.GetPublicCommunityJsonAsync("market/priceoverview/", args, cancellationToken);
 
         if (json?["success"]?.GetValue<bool>() != true)
             return null;

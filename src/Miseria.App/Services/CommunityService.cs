@@ -67,20 +67,41 @@ public sealed class CommunityService
                 ? rawUrl
                 : $"https://store.steampowered.com/{rawUrl.TrimStart('/')}";
 
-            var appId = node["id"]?.GetValue<long>() ?? 0;
-            var type = node["type"]?.GetValue<string>() ?? string.Empty;
+            var type = AsType(node["type"]);
 
             items.Add(new StoreItemSnapshot(
-                type.Length == 0 || type == "app" ? (uint)appId : 0,
+                type.Length == 0 || type == "app" ? (uint)ToLong(node["id"]) : 0,
                 name,
                 url,
                 node["header_image"]?.GetValue<string>() ?? node["large_capsule_image"]?.GetValue<string>() ?? node["small_capsule_image"]?.GetValue<string>(),
-                node["discount_percent"]?.GetValue<int>() ?? 0,
-                node["final_price"]?.GetValue<long>() ?? 0,
+                (int)ToLong(node["discount_percent"]),
+                ToLong(node["final_price"]),
                 node["currency"]?.GetValue<string>() ?? string.Empty));
         }
 
         return items;
+    }
+
+    private static string AsType(JsonNode? node)
+    {
+        if (node is not JsonValue value)
+            return string.Empty;
+
+        if (value.TryGetValue<string>(out var text))
+            return text;
+
+        return value.TryGetValue<long>(out var number) && number == 0 ? "app" : "other";
+    }
+
+    private static long ToLong(JsonNode? node)
+    {
+        if (node is not JsonValue value)
+            return 0;
+
+        if (value.TryGetValue<long>(out var number))
+            return number;
+
+        return value.TryGetValue<string>(out var text) && long.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out var parsed) ? parsed : 0;
     }
 }
 

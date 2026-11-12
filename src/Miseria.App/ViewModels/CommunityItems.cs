@@ -1,4 +1,3 @@
-using System.Globalization;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -26,10 +25,8 @@ public partial class NewsItem : ObservableObject
         Contents = snapshot.Contents;
         DateText = snapshot.Date == DateTimeOffset.MinValue
             ? string.Empty
-            : snapshot.Date.ToLocalTime().ToString("d MMM yyyy, H:mm", Culture);
+            : RuFormat.Date(snapshot.Date.ToLocalTime());
     }
-
-    public static CultureInfo Culture { get; } = CultureInfo.GetCultureInfo("ru-RU");
 }
 
 public partial class StoreItem : ObservableObject

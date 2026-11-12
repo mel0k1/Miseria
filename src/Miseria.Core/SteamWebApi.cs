@@ -22,8 +22,7 @@ public sealed class SteamWebApi
     {
         _identity = identity;
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(20) };
-        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Miseria/1.0");
-        _http.DefaultRequestHeaders.Accept.ParseAdd("application/json, text/javascript, */*; q=0.01");
+        _http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; Miseria/1.0)");
     }
 
     public async Task<JsonNode?> GetApiJsonAsync(string path, IDictionary<string, string?> args, CancellationToken cancellationToken = default)
@@ -35,6 +34,12 @@ public sealed class SteamWebApi
 
     public async Task<JsonNode?> GetPublicJsonAsync(string url, CancellationToken cancellationToken = default)
         => await GetJsonAsync(url, cookies: null, cancellationToken);
+
+    public async Task<JsonNode?> GetPublicCommunityJsonAsync(string path, IDictionary<string, string?> args, CancellationToken cancellationToken = default)
+    {
+        var url = BuildUrl($"{CommunityBase}/{path}", args);
+        return await GetJsonAsync(url, cookies: null, cancellationToken);
+    }
 
     public async Task<JsonNode?> GetCommunityJsonAsync(string path, IDictionary<string, string?> args, CancellationToken cancellationToken = default)
     {
