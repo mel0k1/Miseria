@@ -20,6 +20,9 @@
         <DataTemplate DataType="vm:DownloadViewModel">
             <views:DownloadsView />
         </DataTemplate>
+        <DataTemplate DataType="vm:MarketViewModel">
+            <views:MarketView />
+        </DataTemplate>
         <DataTemplate DataType="vm:HomeViewModel">
             <views:HomeView />
         </DataTemplate>
@@ -51,6 +54,11 @@
             <ui:FANavigationViewItem Tag="downloads" Content="Загрузки">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Download" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="market" Content="Маркет">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Shop" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="home" Content="Главная">

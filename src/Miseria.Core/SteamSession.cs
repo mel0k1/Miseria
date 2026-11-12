@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using SteamKit2;
 using SteamKit2.Authentication;
 using SteamKit2.Internal;
@@ -20,6 +21,9 @@ public sealed class SteamSession : IDisposable
     private readonly HashSet<ulong> _friendIds = [];
     private int _libraryBusy;
     private ulong _ownSteamId;
+    private readonly string _webSessionId = RandomNumberGenerator.GetHexString(24, true);
+    private string? _webToken;
+    private DateTimeOffset _webTokenAt;
 
     private TaskCompletionSource _connected = NewCompletion();
     private string? _guardData;
@@ -168,6 +172,25 @@ public sealed class SteamSession : IDisposable
 
     public SteamDownloader CreateDownloader() => new(_client, _apps, _content);
 
+    public async Task<WebIdentity> GetWebIdentityAsync()
+    {
+        if (State != SessionState.Online || _ownSteamId == 0)
+            throw new InvalidOperationException("Web identity is only available online.");
+
+        if (_activeSession == null)
+            throw new InvalidOperationException("No active session.");
+
+        if (_webToken == null || DateTimeOffset.UtcNow - _webTokenAt > TimeSpan.FromMinutes(10))
+        {
+            var generated = await _client.Authentication.GenerateAccessTokenForAppAsync(
+                new SteamID(_ownSteamId), _activeSession.RefreshToken, false);
+            _webToken = generated.AccessToken;
+            _webTokenAt = DateTimeOffset.UtcNow;
+        }
+
+        return new WebIdentity(_ownSteamId, _webToken, _webSessionId);
+    }
+
     public void SendChatMessage(ulong steamId, string message)
     {
         if (State != SessionState.Online || string.IsNullOrWhiteSpace(message))
@@ -191,6 +214,7 @@ public sealed class SteamSession : IDisposable
 
         _store.Delete();
         _user.LogOff();
+        _webToken = null;
     }
 
     public void Dispose()
@@ -491,6 +515,7 @@ public sealed class SteamSession : IDisposable
     {
         _friendIds.Clear();
         _ownSteamId = 0;
+        _webToken = null;
 
         if (State == SessionState.Online)
         {

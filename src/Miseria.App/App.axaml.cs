@@ -35,15 +35,20 @@ public class App : Application
         collection.AddSingleton<ManifestStore>();
         collection.AddSingleton<SessionStore>();
         collection.AddSingleton<SteamSession>();
+        collection.AddSingleton<SteamWebApi>(sp => new SteamWebApi(() =>
+            sp.GetRequiredService<SteamSession>().GetWebIdentityAsync()));
         collection.AddSingleton<AvatarCache>();
         collection.AddSingleton<AppIconCache>();
+        collection.AddSingleton<ItemIconCache>();
         collection.AddSingleton<ThemeService>();
+        collection.AddSingleton<MarketService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
         collection.AddSingleton<FriendsViewModel>();
         collection.AddSingleton<HomeViewModel>();
         collection.AddSingleton<LibraryViewModel>();
         collection.AddSingleton<DownloadViewModel>();
+        collection.AddSingleton<MarketViewModel>();
         collection.AddSingleton<ProfileViewModel>();
         collection.AddSingleton<SettingsViewModel>();
 
