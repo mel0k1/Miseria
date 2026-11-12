@@ -32,6 +32,9 @@
         <DataTemplate DataType="vm:WorkshopViewModel">
             <views:WorkshopView />
         </DataTemplate>
+        <DataTemplate DataType="vm:GroupsViewModel">
+            <views:GroupsView />
+        </DataTemplate>
         <DataTemplate DataType="vm:CommunityViewModel">
             <views:CommunityView />
         </DataTemplate>
@@ -86,6 +89,11 @@
             <ui:FANavigationViewItem Tag="workshop" Content="Мастерская">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Cloud" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="groups" Content="Группы">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Like" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="community" Content="Сообщество">
