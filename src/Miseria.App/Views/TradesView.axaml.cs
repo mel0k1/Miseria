@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Miseria.App.ViewModels;
 
@@ -16,5 +17,11 @@ public partial class TradesView : UserControl
     {
         if (DataContext is TradesViewModel vm)
             await vm.EnsureLoadedAsync();
+    }
+
+    private void OnTradeTileTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is Border { DataContext: InventoryItem item })
+            item.IsSelected = !item.IsSelected;
     }
 }

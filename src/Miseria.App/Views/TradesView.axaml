@@ -38,7 +38,7 @@
           RowSpacing="12"
           Margin="28,24,28,16">
         <Grid Grid.Row="0"
-              ColumnDefinitions="*,Auto,Auto,Auto"
+              ColumnDefinitions="*,Auto,Auto,Auto,Auto"
               ColumnSpacing="10">
             <StackPanel Spacing="2">
                 <TextBlock Text="Обмены"
@@ -57,11 +57,17 @@
                           IsChecked="{Binding !IsIncoming}"
                           Content="Отправленные" />
             <Button Grid.Column="3"
+                    Content="Создать предложение"
+                    Command="{Binding StartCreateCommand}"
+                    IsVisible="{Binding !IsCreating}"
+                    VerticalAlignment="Center" />
+            <Button Grid.Column="4"
                     Content="Обновить"
                     Command="{Binding RefreshCommand}"
                     VerticalAlignment="Center" />
         </Grid>
-        <ScrollViewer Grid.Row="1">
+        <ScrollViewer Grid.Row="1"
+                      IsVisible="{Binding !IsCreating}">
             <StackPanel>
                 <ItemsControl ItemsSource="{Binding Offers}">
                     <ItemsControl.ItemTemplate>
@@ -226,6 +232,142 @@
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
+        <Grid Grid.Row="1"
+              IsVisible="{Binding IsCreating}">
+            <Grid RowDefinitions="Auto,*,Auto"
+                  RowSpacing="10">
+                <Grid Grid.Row="0"
+                      ColumnDefinitions="*,*,Auto"
+                      ColumnSpacing="10">
+                    <ComboBox ItemsSource="{Binding Friends}"
+                              SelectedItem="{Binding SelectedFriend}"
+                              DisplayMemberBinding="{Binding Name}"
+                              PlaceholderText="Выберите друга"
+                              MinWidth="200" />
+                    <ComboBox Grid.Column="1"
+                              ItemsSource="{Binding Apps}"
+                              SelectedItem="{Binding OwnApp}"
+                              DisplayMemberBinding="{Binding Name}"
+                              MinWidth="180" />
+                    <ComboBox Grid.Column="2"
+                              ItemsSource="{Binding Apps}"
+                              SelectedItem="{Binding TheirApp}"
+                              DisplayMemberBinding="{Binding Name}"
+                              MinWidth="180" />
+                </Grid>
+                <Grid Grid.Row="1"
+                      ColumnDefinitions="*,*"
+                      ColumnSpacing="14">
+                    <ScrollViewer Grid.Column="0">
+                        <StackPanel>
+                            <TextBlock Classes.groupLabel="True" Text="Ваши предметы" />
+                            <ItemsControl ItemsSource="{Binding OwnItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Width="116"
+                                                    Margin="0,0,8,8"
+                                                    Spacing="3">
+                                            <Border Classes.tile="True"
+                                                    Tapped="OnTradeTileTapped"
+                                                    ToolTip.Tip="{Binding Name}">
+                                                <Panel>
+                                                    <Image Source="{Binding Icon}"
+                                                           IsVisible="{Binding HasIcon}"
+                                                           Stretch="Uniform"
+                                                           Margin="4" />
+                                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                            CornerRadius="4"
+                                                            IsVisible="{Binding !HasIcon}" />
+                                                    <Border BorderThickness="2"
+                                                            BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                                                            CornerRadius="6"
+                                                            IsVisible="{Binding IsSelected}" />
+                                                </Panel>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                    <ScrollViewer Grid.Column="1">
+                        <StackPanel>
+                            <TextBlock Classes.groupLabel="True" Text="Предметы друга" />
+                            <ItemsControl ItemsSource="{Binding TheirItems}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Width="116"
+                                                    Margin="0,0,8,8"
+                                                    Spacing="3">
+                                            <Border Classes.tile="True"
+                                                    Tapped="OnTradeTileTapped"
+                                                    ToolTip.Tip="{Binding Name}">
+                                                <Panel>
+                                                    <Image Source="{Binding Icon}"
+                                                           IsVisible="{Binding HasIcon}"
+                                                           Stretch="Uniform"
+                                                           Margin="4" />
+                                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                            CornerRadius="4"
+                                                            IsVisible="{Binding !HasIcon}" />
+                                                    <Border BorderThickness="2"
+                                                            BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                                                            CornerRadius="6"
+                                                            IsVisible="{Binding IsSelected}" />
+                                                </Panel>
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="11"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+                <StackPanel Grid.Row="2"
+                            Spacing="10">
+                    <TextBox Text="{Binding OfferMessage}"
+                             PlaceholderText="Сообщение к обмену (необязательно)" />
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto"
+                          ColumnSpacing="10">
+                        <TextBlock Text="{Binding TheirStatusText}"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding SelectionSummary}"
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <Button Grid.Column="2"
+                                Content="Отправить"
+                                Command="{Binding SendOfferCommand}"
+                                IsEnabled="{Binding CanSendOffer}" />
+                        <Button Grid.Column="3"
+                                Content="Отмена"
+                                Command="{Binding CancelCreateCommand}" />
+                    </Grid>
+                </StackPanel>
+            </Grid>
+        </Grid>
         <Grid Grid.Row="1"
               IsVisible="{Binding IsBusy}">
             <StackPanel HorizontalAlignment="Center"

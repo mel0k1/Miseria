@@ -10,7 +10,7 @@ public enum TradeDirection
     Sent
 }
 
-public sealed record TradeAssetSnapshot(uint AppId, long ClassId, long InstanceId, long AssetId);
+public sealed record TradeAssetSnapshot(uint AppId, uint ContextId, long ClassId, long InstanceId, long AssetId);
 
 public sealed record TradeDescriptionSnapshot(uint AppId, long ClassId, long InstanceId, string Name, string Type, string? IconUrl, string? NameColor);
 
@@ -28,6 +28,8 @@ public sealed record TradeOfferSnapshot(
 public sealed record TradeOffersResult(IReadOnlyList<TradeOfferSnapshot> Offers, IReadOnlyDictionary<(uint AppId, long ClassId, long InstanceId), TradeDescriptionSnapshot> Descriptions);
 
 public sealed record TradeAcceptResult(bool Accepted, bool NeedsMobileConfirmation);
+
+public sealed record CreateOfferResult(bool Created, ulong OfferId, bool NeedsMobileConfirmation, string Error);
 
 public sealed class TradeService
 {
@@ -95,6 +97,99 @@ public sealed class TradeService
         return json != null;
     }
 
+    public async Task<CreateOfferResult> CreateAsync(
+        ulong partnerSteamId,
+        string message,
+        IReadOnlyList<TradeAssetSnapshot> toGive,
+        IReadOnlyList<TradeAssetSnapshot> toReceive,
+        CancellationToken cancellationToken = default)
+    {
+        var offerData = new JsonObject
+        {
+            ["newversion"] = true,
+            ["version"] = toGive.Count + toReceive.Count + 1,
+            ["me"] = new JsonObject
+            {
+                ["assets"] = ToJsonAssets(toGive),
+                ["currency"] = new JsonArray(),
+                ["ready"] = false
+            },
+            ["them"] = new JsonObject
+            {
+                ["assets"] = ToJsonAssets(toReceive),
+                ["currency"] = new JsonArray(),
+                ["ready"] = false
+            }
+        };
+
+        var account = partnerSteamId & 0xFFFFFFFF;
+        var form = new Dictionary<string, string?>
+        {
+            ["serverid"] = "1",
+            ["partner"] = partnerSteamId.ToString(CultureInfo.InvariantCulture),
+            ["tradeoffermessage"] = message ?? string.Empty,
+            ["json_tradeoffer"] = offerData.ToJsonString(),
+            ["captcha"] = string.Empty,
+            ["trade_offer_create_params"] = "{}",
+            ["tradeofferid_countered"] = string.Empty
+        };
+
+        var referer = $"https://steamcommunity.com/tradeoffer/new/?partner={account}";
+
+        try
+        {
+            var json = await _web.PostFormAsync("https://steamcommunity.com/tradeoffer/new/send", referer, form, true, cancellationToken);
+
+            if (json == null)
+                return new CreateOfferResult(false, 0, false, "Steam вернул пустой ответ");
+
+            if (json["strError"] is JsonValue error)
+            {
+                var text = error.TryGetValue<string>(out var s) ? s : "Steam отклонил предложение";
+                return new CreateOfferResult(false, 0, false, text);
+            }
+
+            var offerId = ToLong(json["tradeofferid"]);
+
+            if (offerId == 0)
+                return new CreateOfferResult(false, 0, false, "Steam не вернул идентификатор обмена");
+
+            return new CreateOfferResult(
+                true,
+                (ulong)offerId,
+                json["needs_mobile_confirmation"]?.GetValue<bool>() == true,
+                string.Empty);
+        }
+        catch (HttpRequestException ex)
+        {
+            return new CreateOfferResult(false, 0, false, $"Steam отклонил запрос ({(int?)ex.StatusCode ?? 0})");
+        }
+    }
+
+    private static JsonArray ToJsonAssets(IReadOnlyList<TradeAssetSnapshot> assets)
+    {
+        var array = new JsonArray();
+
+        foreach (var asset in assets)
+        {
+            array.Add(new JsonObject
+            {
+                ["appid"] = asset.AppId,
+                ["contextid"] = asset.ClassId == 0 ? string.Empty : null,
+                ["assetid"] = asset.AssetId.ToString(CultureInfo.InvariantCulture),
+                ["amount"] = "1"
+            });
+        }
+
+        foreach (var asset in array.OfType<JsonObject>())
+        {
+            if (asset["contextid"] == null)
+                asset["contextid"] = string.Empty;
+        }
+
+        return array;
+    }
+
     private static Dictionary<(uint AppId, long ClassId, long InstanceId), TradeDescriptionSnapshot> ParseDescriptions(JsonArray? array)
     {
         var map = new Dictionary<(uint, long, long), TradeDescriptionSnapshot>();
@@ -157,6 +252,7 @@ public sealed class TradeService
         {
             assets.Add(new TradeAssetSnapshot(
                 (uint)(node["appid"]?.GetValue<long>() ?? 0),
+                (uint)(node["contextid"] == null ? 0 : ToLong(node["contextid"])),
                 ToLong(node["classid"]),
                 ToLong(node["instanceid"]),
                 ToLong(node["assetid"])));
