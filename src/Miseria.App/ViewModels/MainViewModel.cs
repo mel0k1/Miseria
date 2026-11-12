@@ -15,6 +15,8 @@ public partial class MainViewModel : ObservableObject
 
     public MarketViewModel Market { get; }
 
+    public InventoryViewModel Inventory { get; }
+
     public TradesViewModel Trades { get; }
 
     public CommunityViewModel Community { get; }
@@ -26,13 +28,14 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ObservableObject? _currentPage;
 
-    public MainViewModel(FriendsViewModel friends, HomeViewModel home, LibraryViewModel library, DownloadViewModel download, MarketViewModel market, TradesViewModel trades, CommunityViewModel community, ProfileViewModel profile, SettingsViewModel settings)
+    public MainViewModel(FriendsViewModel friends, HomeViewModel home, LibraryViewModel library, DownloadViewModel download, MarketViewModel market, InventoryViewModel inventory, TradesViewModel trades, CommunityViewModel community, ProfileViewModel profile, SettingsViewModel settings)
     {
         Friends = friends;
         Home = home;
         Library = library;
         Download = download;
         Market = market;
+        Inventory = inventory;
         Trades = trades;
         Community = community;
         Profile = profile;
@@ -55,6 +58,7 @@ public partial class MainViewModel : ObservableObject
             "library" => Library,
             "downloads" => Download,
             "market" => Market,
+            "inventory" => Inventory,
             "trades" => Trades,
             "community" => Community,
             "profile" => Profile,

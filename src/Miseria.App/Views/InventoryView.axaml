@@ -1,0 +1,223 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.InventoryView"
+             x:DataType="vm:InventoryViewModel">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.cardLabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Border.itemRow">
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.itemRow:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Border.tile">
+            <Setter Property="Width" Value="116" />
+            <Setter Property="Height" Value="84" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="ClipToBounds" Value="True" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="Auto,*,Auto"
+          RowSpacing="12"
+          Margin="28,24,28,16">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,180,Auto"
+              ColumnSpacing="12">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Инвентарь"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding Apps}"
+                      SelectedItem="{Binding SelectedApp}"
+                      DisplayMemberBinding="{Binding Name}"
+                      VerticalAlignment="Center" />
+            <Button Grid.Column="2"
+                    Content="Обновить"
+                    Command="{Binding RefreshCommand}"
+                    VerticalAlignment="Center" />
+        </Grid>
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,340"
+              ColumnSpacing="16">
+            <Grid Grid.Column="0"
+                  RowDefinitions="Auto,*"
+                  RowSpacing="8">
+                <ToggleButton Grid.Row="0"
+                              IsChecked="{Binding OnlyMarketable}"
+                              Content="Только продаваемые"
+                              HorizontalAlignment="Left"
+                              Padding="12,5" />
+                <ScrollViewer Grid.Row="1">
+                    <ItemsControl ItemsSource="{Binding VisibleItems}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Width="116"
+                                            Margin="0,0,8,8"
+                                            Spacing="3">
+                                    <Border Classes.tile="True"
+                                            Tapped="OnItemTapped"
+                                            ToolTip.Tip="{Binding Name}">
+                                        <Panel>
+                                            <Image Source="{Binding Icon}"
+                                                   IsVisible="{Binding HasIcon}"
+                                                   Stretch="Uniform"
+                                                   Margin="4" />
+                                            <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                    CornerRadius="4"
+                                                    IsVisible="{Binding !HasIcon}" />
+                                            <Border BorderThickness="2"
+                                                    BorderBrush="{DynamicResource AccentFillColorDefaultBrush}"
+                                                    CornerRadius="6"
+                                                    IsVisible="{Binding IsSelected}" />
+                                        </Panel>
+                                    </Border>
+                                    <TextBlock Text="{Binding Name}"
+                                               FontSize="11"
+                                               TextTrimming="CharacterEllipsis"
+                                               ToolTip.Tip="{Binding Name}" />
+                                    <TextBlock Text="{Binding BadgeText}"
+                                               FontSize="10"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+            <Border Grid.Column="1"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="16"
+                    VerticalAlignment="Stretch">
+                <Panel>
+                    <StackPanel Spacing="10"
+                                IsVisible="{Binding HasDetail}">
+                        <TextBlock Text="{Binding SelectedItem.Name}"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding SelectedItem.Type}"
+                                   Classes.cardLabel="True"
+                                   IsVisible="{Binding SelectedItem.HasType}" />
+                        <Border Width="220"
+                                Height="160"
+                                CornerRadius="6"
+                                HorizontalAlignment="Left"
+                                Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                ClipToBounds="True">
+                            <Image Source="{Binding SelectedItem.Icon}"
+                                   IsVisible="{Binding SelectedItem.HasIcon}"
+                                   Stretch="Uniform" />
+                        </Border>
+                        <TextBlock Text="{Binding SelectedItem.Description}"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   MaxHeight="120"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                   IsVisible="{Binding SelectedItem.HasDescription}" />
+                        <Grid ColumnDefinitions="*,Auto"
+                              RowDefinitions="Auto,Auto"
+                              Margin="0,2,0,0"
+                              IsVisible="{Binding HasPrices}">
+                            <TextBlock Grid.Row="0"
+                                       Classes.cardLabel="True"
+                                       Text="Минимальная цена" />
+                            <TextBlock Grid.Row="0"
+                                       Grid.Column="1"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding DetailLowest}" />
+                            <TextBlock Grid.Row="1"
+                                       Classes.cardLabel="True"
+                                       Text="Медианная цена" />
+                            <TextBlock Grid.Row="1"
+                                       Grid.Column="1"
+                                       FontWeight="SemiBold"
+                                       Text="{Binding DetailMedian}" />
+                        </Grid>
+                        <StackPanel Spacing="8"
+                                    IsVisible="{Binding SelectedItem.CanSell}">
+                            <TextBox Text="{Binding SellPrice}"
+                                     PlaceholderText="Цена для покупателя, например 149,99" />
+                            <ComboBox ItemsSource="{Binding Currencies}"
+                                      SelectedItem="{Binding SelectedCurrency}"
+                                      DisplayMemberBinding="{Binding Name}"
+                                      HorizontalAlignment="Left"
+                                      MinWidth="120" />
+                            <Button Content="Выставить на маркет"
+                                    Command="{Binding SellCommand}"
+                                    IsEnabled="{Binding !IsSelling}"
+                                    HorizontalAlignment="Left" />
+                        </StackPanel>
+                        <StackPanel Spacing="8"
+                                    IsVisible="{Binding !SelectedItem.CanSell}">
+                            <TextBlock Text="{Binding SelectedItem.BadgeText}"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding SellMessage}"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <StackPanel Spacing="8"
+                                IsVisible="{Binding !HasDetail}">
+                        <TextBlock Text="Карточка предмета"
+                                   FontSize="16"
+                                   FontWeight="SemiBold" />
+                        <TextBlock Text="Выберите предмет, чтобы увидеть описание, цены и выставить его на торговую площадку."
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </Panel>
+            </Border>
+        </Grid>
+        <StackPanel Grid.Row="2"
+                    IsVisible="{Binding IsEmpty}"
+                    HorizontalAlignment="Center"
+                    Spacing="8">
+            <TextBlock Text="Инвентарь пуст"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding EmptyText}"
+                       TextWrapping="Wrap"
+                       MaxWidth="420"
+                       TextAlignment="Center"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <Grid Grid.Row="1"
+              IsVisible="{Binding IsBusy}">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="10">
+                <ProgressBar IsIndeterminate="True"
+                             Width="200"
+                             Height="2" />
+                <TextBlock Text="Загрузка инвентаря…"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

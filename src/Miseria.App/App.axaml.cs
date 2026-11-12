@@ -42,6 +42,9 @@ public class App : Application
         collection.AddSingleton<ItemIconCache>();
         collection.AddSingleton<ThemeService>();
         collection.AddSingleton<MarketService>();
+        collection.AddSingleton(sp => new InventoryService(
+            sp.GetRequiredService<SteamWebApi>(),
+            () => Task.FromResult(sp.GetRequiredService<SteamSession>().OwnSteamId)));
         collection.AddSingleton<TradeService>();
         collection.AddSingleton<CommunityService>();
         collection.AddSingleton<LogonViewModel>();
@@ -51,6 +54,7 @@ public class App : Application
         collection.AddSingleton<LibraryViewModel>();
         collection.AddSingleton<DownloadViewModel>();
         collection.AddSingleton<MarketViewModel>();
+        collection.AddSingleton<InventoryViewModel>();
         collection.AddSingleton<TradesViewModel>();
         collection.AddSingleton<CommunityViewModel>();
         collection.AddSingleton<ProfileViewModel>();

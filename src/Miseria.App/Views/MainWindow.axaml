@@ -23,6 +23,9 @@
         <DataTemplate DataType="vm:MarketViewModel">
             <views:MarketView />
         </DataTemplate>
+        <DataTemplate DataType="vm:InventoryViewModel">
+            <views:InventoryView />
+        </DataTemplate>
         <DataTemplate DataType="vm:TradesViewModel">
             <views:TradesView />
         </DataTemplate>
@@ -65,6 +68,11 @@
             <ui:FANavigationViewItem Tag="market" Content="Маркет">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Shop" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="inventory" Content="Инвентарь">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Library" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="trades" Content="Обмены">
