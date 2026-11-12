@@ -13,6 +13,8 @@ namespace Miseria.App;
 
 public class App : Application
 {
+    public static bool ScreenshotMode { get; set; }
+
     private ServiceProvider? _services;
     private LogonWindow? _logonWindow;
     private MainWindow? _mainWindow;
@@ -30,6 +32,7 @@ public class App : Application
 
         collection.AddSingleton<SettingsStore>();
         collection.AddSingleton<InstallStore>();
+        collection.AddSingleton<ManifestStore>();
         collection.AddSingleton<SessionStore>();
         collection.AddSingleton<SteamSession>();
         collection.AddSingleton<AvatarCache>();
@@ -51,7 +54,7 @@ public class App : Application
 
         _services.GetRequiredService<LogonViewModel>().ProceedRequested += OnFamilyViewProceed;
 
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime && !ScreenshotMode)
         {
             _services.GetRequiredService<ThemeService>().ApplySavedTheme();
             ShowLogon();
