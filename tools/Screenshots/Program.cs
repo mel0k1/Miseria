@@ -124,7 +124,12 @@ internal static class Program
             .AddSingleton<ItemIconCache>()
             .AddSingleton<ThemeService>()
             .AddSingleton<MarketService>()
+            .AddSingleton(sp => new InventoryService(
+                sp.GetRequiredService<SteamWebApi>(),
+                () => Task.FromResult(76561198012345678UL)))
             .AddSingleton<TradeService>()
+            .AddSingleton<WorkshopService>()
+            .AddSingleton<GroupService>()
             .AddSingleton<CommunityService>()
             .AddSingleton<LogonViewModel>()
             .AddSingleton<MainViewModel>()
@@ -133,7 +138,10 @@ internal static class Program
             .AddSingleton<LibraryViewModel>()
             .AddSingleton<DownloadViewModel>()
             .AddSingleton<MarketViewModel>()
+            .AddSingleton<InventoryViewModel>()
             .AddSingleton<TradesViewModel>()
+            .AddSingleton<WorkshopViewModel>()
+            .AddSingleton<GroupsViewModel>()
             .AddSingleton<CommunityViewModel>()
             .AddSingleton<ProfileViewModel>()
             .AddSingleton<SettingsViewModel>()
@@ -268,6 +276,29 @@ internal static class Program
         await Task.Delay(2200);
         await CaptureAsync(window, Path.Combine(outDir, "trades-dark.png"));
 
+        await SeedTradeCreationAsync(main, services);
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "trades-create-dark.png"));
+        main.Trades.IsCreating = false;
+
+        window.NavigateTo("inventory");
+        await SeedInventoryAsync(main.Inventory, services);
+        await Task.Delay(2500);
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "inventory-dark.png"));
+
+        window.NavigateTo("workshop");
+        await SeedWorkshopAsync(main.Workshop, services);
+        await Task.Delay(3500);
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "workshop-dark.png"));
+
+        window.NavigateTo("groups");
+        await SeedGroupsAsync(main.Groups, services);
+        await Task.Delay(2500);
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "groups-dark.png"));
+
         window.NavigateTo("community");
         await Task.Delay(5000);
         await CaptureAsync(window, Path.Combine(outDir, "community-dark.png"));
@@ -343,7 +374,7 @@ internal static class Program
 
         TradeOfferSnapshot Snapshot(int index, TradeDirection direction, ulong partner, string message, bool mobile, int giveFrom, int receiveFrom)
         {
-            TradeAssetSnapshot Asset(int slot) => new(730, slot + 1, 0, 1000 + slot);
+            TradeAssetSnapshot Asset(int slot) => new(730, 2, slot + 1, 0, 1000 + slot);
 
             return new TradeOfferSnapshot(
                 3314000000UL + (ulong)index,
@@ -372,6 +403,235 @@ internal static class Program
         trades.Offers.Add(first);
         trades.Offers.Add(second);
         trades.StatusText = "Активных обменов: 2";
+    }
+
+    private static async Task SeedTradeCreationAsync(MainViewModel main, IServiceProvider services)
+    {
+        var trades = main.Trades;
+        var icons = services.GetRequiredService<ItemIconCache>();
+        var market = services.GetRequiredService<MarketService>();
+
+        trades.SuppressAutoLoad();
+        trades.IsCreating = true;
+        trades.OfferMessage = "Меняю кейсы на ключи, го";
+        trades.SelectedFriend = main.Friends.Friends[3];
+        await Task.Delay(2500);
+
+        var items = await LoadMarketItemsAsync(market);
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var snapshot = new InventoryItemSnapshot(
+                730,
+                2,
+                (1000 + i).ToString(CultureInfo.InvariantCulture),
+                i + 1,
+                0,
+                items[i].Name,
+                items[i].HashName,
+                i % 2 == 0 ? "Контейнер" : "Обычный предмет",
+                items[i].IconUrl,
+                null,
+                true,
+                true,
+                string.Empty);
+            var item = new InventoryItem(snapshot);
+            trades.AddOwnTradeItem(item);
+            _ = LoadItemIconAsync(item, icons, items[i].IconUrl);
+        }
+
+        if (trades.OwnItems.Count > 0)
+            trades.OwnItems[0].IsSelected = true;
+
+        if (trades.OwnItems.Count > 2)
+            trades.OwnItems[2].IsSelected = true;
+
+        trades.TheirStatusText = "Инвентарь друга пуст или закрыт настройками приватности";
+    }
+
+    private static async Task SeedInventoryAsync(InventoryViewModel inventory, IServiceProvider services)
+    {
+        var icons = services.GetRequiredService<ItemIconCache>();
+        var market = services.GetRequiredService<MarketService>();
+
+        await inventory.EnsureLoadedAsync();
+
+        var items = await LoadMarketItemsAsync(market);
+        inventory.SelectedItem = null;
+        inventory.Items.Clear();
+        inventory.VisibleItems.Clear();
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var snapshot = new InventoryItemSnapshot(
+                730,
+                2,
+                (2000 + i).ToString(CultureInfo.InvariantCulture),
+                i + 1,
+                0,
+                items[i].Name,
+                items[i].HashName,
+                i % 2 == 0 ? "Контейнер" : "Обычный предмет",
+                items[i].IconUrl,
+                null,
+                true,
+                true,
+                i % 2 == 0 ? "Открывается, чтобы получить один из предметов внутри." : string.Empty);
+            var item = new InventoryItem(snapshot);
+            inventory.Items.Add(item);
+            inventory.VisibleItems.Add(item);
+            _ = LoadItemIconAsync(item, icons, items[i].IconUrl);
+        }
+
+        inventory.StatusText = $"Предметов: {inventory.Items.Count} из {inventory.Items.Count}";
+
+        if (inventory.VisibleItems.Count > 0)
+        {
+            inventory.SelectedItem = inventory.VisibleItems[0];
+            inventory.SellPrice = "49,99";
+        }
+    }
+
+    private static async Task SeedWorkshopAsync(WorkshopViewModel workshop, IServiceProvider services)
+    {
+        var icons = services.GetRequiredService<ItemIconCache>();
+        var market = services.GetRequiredService<MarketService>();
+
+        await workshop.EnsureLoadedAsync();
+
+        var items = await LoadMarketItemsAsync(market);
+        var titles = new[]
+        {
+            "Пыль 2 — ремейк классической карты",
+            "Зомби-кампания: Последний рубеж",
+            "Мод на графику: Панорама",
+            "Кампания: Тёмные пещеры",
+            "Арена для дуэлей",
+            "Тренировочная карта для прицела",
+            "Сборник скинов оружий",
+            "Модели игроков: Легион"
+        };
+
+        workshop.SelectedItem = null;
+        workshop.Items.Clear();
+
+        for (var i = 0; i < Math.Min(titles.Length, items.Count); i++)
+        {
+            var snapshot = new WorkshopFileSnapshot(
+                (2900000000 + i).ToString(CultureInfo.InvariantCulture),
+                730,
+                titles[i],
+                "Карты, моды и кампании от сообщества: полноценный материал с превью, тегами и статистикой загрузок.",
+                $"https://community.cloudflare.steamstatic.com/economy/image/{items[i].IconUrl}/256fx144f",
+                (i + 1) * 1_400_000,
+                76561198000000000UL.ToString(CultureInfo.InvariantCulture),
+                DateTimeOffset.UtcNow.AddDays(-40 - i * 9),
+                DateTimeOffset.UtcNow.AddDays(-3 - i),
+                180_000 - i * 12_000,
+                24_000 - i * 900,
+                900_000 - i * 45_000,
+                i % 2 == 0 ? "Карты, Аркада" : "Моды, Геймплей",
+                i % 2 == 0 ? "Dmitry" : "PixelPioneer");
+            var item = new WorkshopItem(snapshot);
+            workshop.Items.Add(item);
+            _ = icons.LoadUrlAsync(snapshot.PreviewUrl).ContinueWith(t => item.SetIcon(t.Result), TaskScheduler.FromCurrentSynchronizationContext());
+        }
+
+        workshop.StatusText = "Найдено материалов: 1462";
+
+        if (workshop.Items.Count > 0)
+        {
+            workshop.SelectedItem = workshop.Items[0];
+            workshop.ActionMessage = string.Empty;
+        }
+    }
+
+    private static async Task SeedGroupsAsync(GroupsViewModel groups, IServiceProvider services)
+    {
+        var icons = services.GetRequiredService<ItemIconCache>();
+        var market = services.GetRequiredService<MarketService>();
+
+        await groups.EnsureLoadedAsync();
+
+        var items = await LoadMarketItemsAsync(market);
+        var names = new[]
+        {
+            ("valvesoftware", "Valve Software", "Официальная группа Valve Corporation.", 482_000),
+            ("cs2community", "CS2 Community", "Новости, турниры и обмен тактиками Counter-Strike 2.", 156_000),
+            ("indiehunt", "Инди-охотники", "Находим жемчужины в распродажах и делимся обзорами.", 12_400)
+        };
+
+        groups.SelectedGroup = null;
+        groups.Groups.Clear();
+
+        for (var i = 0; i < names.Length; i++)
+        {
+            var (shortName, name, summary, members) = names[i];
+            var snapshot = new GroupSnapshot(
+                "10358279144000000" + i,
+                shortName,
+                name,
+                string.Empty,
+                summary,
+                null,
+                members,
+                members / 42,
+                members / 120);
+            var item = new GroupItem(snapshot);
+            groups.Groups.Add(item);
+            _ = LoadGroupAvatarAsync(item, icons, market, items, i);
+        }
+
+        groups.StatusText = $"Групп: {groups.Groups.Count}";
+        groups.ActionMessage = string.Empty;
+
+        if (groups.Groups.Count > 0)
+            groups.SelectedGroup = groups.Groups[0];
+    }
+
+    private static async Task LoadItemIconAsync(InventoryItem item, ItemIconCache icons, string? iconUrl)
+    {
+        var bitmap = await icons.LoadAsync(iconUrl);
+
+        if (bitmap == null)
+            return;
+
+        await Dispatcher.UIThread.InvokeAsync(() => item.SetIcon(bitmap));
+    }
+
+    private static async Task LoadGroupAvatarAsync(GroupItem item, ItemIconCache icons, MarketService market, List<MarketItemSnapshot> items, int index)
+    {
+        if (items.Count == 0)
+            return;
+
+        var url = $"https://community.cloudflare.steamstatic.com/economy/image/{items[index % items.Count].IconUrl}/96fx96f";
+        var bitmap = await icons.LoadUrlAsync(url);
+
+        if (bitmap == null)
+            return;
+
+        await Dispatcher.UIThread.InvokeAsync(() => item.SetAvatar(bitmap));
+    }
+
+    private static async Task<List<MarketItemSnapshot>> LoadMarketItemsAsync(MarketService market)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try
+            {
+                var result = await market.SearchAsync(730, string.Empty, 0, 10);
+
+                if (result.Items.Count > 0)
+                    return result.Items.ToList();
+            }
+            catch
+            {
+            }
+
+            await Task.Delay(2000);
+        }
+
+        return [];
     }
 
     private static async Task Shot(Window window, string path)

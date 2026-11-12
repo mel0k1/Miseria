@@ -12,8 +12,13 @@ A minimal Steam client built on [SteamKit2](https://github.com/SteamRE/SteamKit)
 - Friends list with live presence, avatars and disk-cached images
 - Friend chat: messages, typing indicator, unread badges and server-side history
 - Profile page: avatar, persona name, status, country, summary, member since and Steam id
-- Marketplace through the Steam Web API: item search with app and currency filters, price overview (lowest, median, daily volume) and personal sell listings with buy orders
+- Marketplace through the Steam Web API: item search with app and currency filters, price overview (lowest, median, daily volume) and personal sell listings with buy orders that can be cancelled
+- Inventory browser: items per app and context with icons, tradable and marketable badges, descriptions and price overview for each item
+- Selling from the inventory: list an item on the market for a buyer price without leaving the app
 - Trade offers through IEconService with item tiles from both sides, accept, decline and cancel through steamcommunity
+- Trade offer creation: pick a friend, select items from your inventory and the friend's inventory on both sides, attach a message and send the offer
+- Workshop: search and browse materials per app with previews, statistics and tags, subscribe and unsubscribe through steamcommunity
+- Groups: your groups with avatars and member counts, group lookup by short name or link, join and leave
 - Community page: game news for owned apps and featured store items (specials, top sellers, new releases)
 - Library of owned apps through PICS with names, types, icons, search, list and Steam-style capsule grid
 - Downloads through SteamContent: parallel chunk download from the Steam CDN with decryption, verification, progress and cancel
@@ -43,6 +48,14 @@ The refresh token and guard data are stored unencrypted in `~/.config/Miseria/se
 | --- | --- |
 | ![Market search and price overview in the Dark theme](docs/screenshots/market-dark.png) | ![Trade offers in the Dark theme](docs/screenshots/trades-dark.png) |
 
+| Inventory (Dark) | Trade creation (Dark) |
+| --- | --- |
+| ![Inventory with market listing in the Dark theme](docs/screenshots/inventory-dark.png) | ![Trade offer creation in the Dark theme](docs/screenshots/trades-create-dark.png) |
+
+| Workshop (Dark) | Groups (Dark) |
+| --- | --- |
+| ![Workshop browse and subscribe in the Dark theme](docs/screenshots/workshop-dark.png) | ![Groups with join and leave](docs/screenshots/groups-dark.png) |
+
 | Community (Dark) | |
 | --- | --- |
 | ![Community news and featured store items](docs/screenshots/community-dark.png) | |
@@ -67,9 +80,9 @@ xvfb-run -a dotnet run --project tools/Screenshots -- docs/screenshots
 
 The long-term goal is a central hub client like Steam itself. Planned next:
 
-- Inventory browser with item context and market listing creation
-- Trade offer creation from the inventory
-- Workshop browsing, groups and the friends activity feed
+- Market buy orders creation
+- Friends activity feed
+- Group announcements and discussions
 
 ## License
 
