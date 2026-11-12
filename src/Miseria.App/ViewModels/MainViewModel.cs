@@ -7,6 +7,8 @@ public partial class MainViewModel : ObservableObject
 {
     public FriendsViewModel Friends { get; }
 
+    public FeedViewModel Feed { get; }
+
     public HomeViewModel Home { get; }
 
     public LibraryViewModel Library { get; }
@@ -32,9 +34,10 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ObservableObject? _currentPage;
 
-    public MainViewModel(FriendsViewModel friends, HomeViewModel home, LibraryViewModel library, DownloadViewModel download, MarketViewModel market, InventoryViewModel inventory, TradesViewModel trades, WorkshopViewModel workshop, GroupsViewModel groups, CommunityViewModel community, ProfileViewModel profile, SettingsViewModel settings)
+    public MainViewModel(FriendsViewModel friends, FeedViewModel feed, HomeViewModel home, LibraryViewModel library, DownloadViewModel download, MarketViewModel market, InventoryViewModel inventory, TradesViewModel trades, WorkshopViewModel workshop, GroupsViewModel groups, CommunityViewModel community, ProfileViewModel profile, SettingsViewModel settings)
     {
         Friends = friends;
+        Feed = feed;
         Home = home;
         Library = library;
         Download = download;
@@ -61,6 +64,7 @@ public partial class MainViewModel : ObservableObject
         {
             "settings" => Settings,
             "home" => Home,
+            "feed" => Feed,
             "library" => Library,
             "downloads" => Download,
             "market" => Market,

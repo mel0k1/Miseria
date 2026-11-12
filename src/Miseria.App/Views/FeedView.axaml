@@ -1,0 +1,111 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.FeedView"
+             x:DataType="vm:FeedViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.activityRow">
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.activityRow:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="Auto,Auto,*,Auto"
+          RowSpacing="12"
+          Margin="28,24,28,16">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,Auto"
+              ColumnSpacing="12">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Лента активности"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="Что нового у ваших друзей и групп"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <Button Grid.Column="1"
+                    Content="Обновить"
+                    Command="{Binding RefreshCommand}"
+                    VerticalAlignment="Center" />
+        </Grid>
+        <TextBlock Grid.Row="1"
+                   Text="{Binding StatusText}"
+                   FontSize="12"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        <ScrollViewer Grid.Row="2">
+            <ItemsControl ItemsSource="{Binding Entries}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes.activityRow="True">
+                            <Grid ColumnDefinitions="40,*"
+                                  ColumnSpacing="10">
+                                <Border Width="36"
+                                        Height="36"
+                                        CornerRadius="4"
+                                        ClipToBounds="True">
+                                    <Panel>
+                                        <Image Source="{Binding Avatar}"
+                                               IsVisible="{Binding HasAvatar}"
+                                               Stretch="UniformToFill" />
+                                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                CornerRadius="4"
+                                                IsVisible="{Binding !HasAvatar}">
+                                            <TextBlock Text="{Binding Initial}"
+                                                       FontSize="14"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </Border>
+                                    </Panel>
+                                </Border>
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Spacing="3">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8">
+                                        <TextBlock Text="{Binding ActorName}"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding TimeText}"
+                                                   FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Text}"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                                    <HyperlinkButton Content="Открыть профиль"
+                                                     NavigateUri="{Binding ProfileUrl}"
+                                                     IsVisible="{Binding HasProfile}"
+                                                     Padding="0"
+                                                     Margin="0,-2,0,0"
+                                                     FontSize="11" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <StackPanel Grid.Row="2"
+                    IsVisible="{Binding IsEmpty}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="10">
+            <ProgressBar IsIndeterminate="True"
+                         Width="200"
+                         Height="2"
+                         IsVisible="{Binding IsBusy}" />
+            <TextBlock Text="{Binding EmptyText}"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+    </Grid>
+</UserControl>

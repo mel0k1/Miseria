@@ -48,10 +48,12 @@ public class App : Application
         collection.AddSingleton<TradeService>();
         collection.AddSingleton<WorkshopService>();
         collection.AddSingleton<GroupService>();
+        collection.AddSingleton<ActivityService>();
         collection.AddSingleton<CommunityService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
         collection.AddSingleton<FriendsViewModel>();
+        collection.AddSingleton<FeedViewModel>();
         collection.AddSingleton<HomeViewModel>();
         collection.AddSingleton<LibraryViewModel>();
         collection.AddSingleton<DownloadViewModel>();
