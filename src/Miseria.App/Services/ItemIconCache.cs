@@ -29,20 +29,32 @@ public sealed class ItemIconCache : IDisposable
         if (string.IsNullOrWhiteSpace(iconUrl))
             return Task.FromResult<Bitmap?>(null);
 
-        return _memory.GetOrAdd(iconUrl, LoadCoreAsync);
+        return _memory.GetOrAdd($"eco/{iconUrl}", LoadEconomyAsync);
     }
 
-    private async Task<Bitmap?> LoadCoreAsync(string iconUrl)
+    public Task<Bitmap?> LoadUrlAsync(string? url)
     {
-        var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(iconUrl))).ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(url))
+            return Task.FromResult<Bitmap?>(null);
+
+        return _memory.GetOrAdd($"url/{url}", LoadUrlCoreAsync);
+    }
+
+    private async Task<Bitmap?> LoadEconomyAsync(string iconUrl)
+    {
+        return await LoadUrlCoreAsync($"https://community.cloudflare.steamstatic.com/economy/image/{iconUrl}/96fx96f");
+    }
+
+    private async Task<Bitmap?> LoadUrlCoreAsync(string url)
+    {
+        var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(url))).ToLowerInvariant();
         var file = Path.Combine(CacheDirectory, hash[..40] + ".img");
 
         try
         {
             if (!File.Exists(file))
             {
-                using var response = await _http.GetAsync(
-                    $"https://community.cloudflare.steamstatic.com/economy/image/{iconUrl}/96fx96f");
+                using var response = await _http.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
                     return null;

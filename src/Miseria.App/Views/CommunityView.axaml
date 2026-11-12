@@ -1,0 +1,199 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.CommunityView"
+             x:DataType="vm:CommunityViewModel">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.groupTitle">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="TextBlock.meta">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Border.storeCard">
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="8" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.storeCard:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Border.discountBadge">
+            <Setter Property="Background" Value="#4C6A22" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="5,2" />
+        </Style>
+        <Style Selector="Border.newsCard">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="Auto,*"
+          RowSpacing="12"
+          Margin="28,24,28,16">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,240"
+              ColumnSpacing="12">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Сообщество"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding NewsApps}"
+                      SelectedItem="{Binding SelectedNewsApp}"
+                      DisplayMemberBinding="{Binding Name}"
+                      PlaceholderText="Выберите игру"
+                      IsEnabled="{Binding HasNewsApps}"
+                      VerticalAlignment="Center" />
+        </Grid>
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,330"
+              ColumnSpacing="16">
+            <ScrollViewer Grid.Column="0">
+                <StackPanel Spacing="6">
+                    <TextBlock Classes.groupTitle="True" Text="Новости игр" />
+                    <ItemsControl ItemsSource="{Binding News}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Classes.newsCard="True">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="{Binding Title}"
+                                                   FontWeight="SemiBold"
+                                                   TextWrapping="Wrap"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   MaxHeight="44" />
+                                        <TextBlock Text="{Binding Contents}"
+                                                   TextWrapping="Wrap"
+                                                   FontSize="12"
+                                                   MaxHeight="66"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        <StackPanel Orientation="Horizontal"
+                                                    Spacing="8">
+                                            <TextBlock Classes.meta="True"
+                                                       Text="{Binding FeedLabel}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       MaxWidth="240" />
+                                            <TextBlock Classes.meta="True" Text="{Binding DateText}" />
+                                            <HyperlinkButton Content="Открыть"
+                                                             NavigateUri="{Binding Url}"
+                                                             Padding="0"
+                                                             Margin="6,0,0,0" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Новости появятся, когда загрузится библиотека"
+                               IsVisible="{Binding !HasNews}"
+                               Classes.meta="True" />
+                </StackPanel>
+            </ScrollViewer>
+            <ScrollViewer Grid.Column="1">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes.groupTitle="True" Text="Спецпредложения" />
+                        <ItemsControl ItemsSource="{Binding Specials}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes.storeCard="True">
+                                        <StackPanel Spacing="4">
+                                            <Border Height="72"
+                                                    CornerRadius="6"
+                                                    ClipToBounds="True">
+                                                <Image Source="{Binding Image}"
+                                                       IsVisible="{Binding HasImage}"
+                                                       Stretch="UniformToFill" />
+                                            </Border>
+                                            <Grid ColumnDefinitions="*,Auto"
+                                                  ColumnSpacing="6">
+                                                <TextBlock Text="{Binding Name}"
+                                                           FontSize="12"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           ToolTip.Tip="{Binding Name}" />
+                                                <StackPanel Grid.Column="1"
+                                                            Orientation="Horizontal"
+                                                            Spacing="5">
+                                                    <Border Classes.discountBadge="True"
+                                                            IsVisible="{Binding HasDiscount}">
+                                                        <TextBlock Text="{Binding DiscountText}"
+                                                                   FontSize="10"
+                                                                   FontWeight="SemiBold"
+                                                                   Foreground="#BEF264" />
+                                                    </Border>
+                                                    <TextBlock Text="{Binding PriceText}"
+                                                               FontSize="12"
+                                                               FontWeight="SemiBold" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes.groupTitle="True" Text="Топ продаж" />
+                        <ItemsControl ItemsSource="{Binding TopSellers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes.storeCard="True">
+                                        <StackPanel Spacing="4">
+                                            <Border Height="72"
+                                                    CornerRadius="6"
+                                                    ClipToBounds="True">
+                                                <Image Source="{Binding Image}"
+                                                       IsVisible="{Binding HasImage}"
+                                                       Stretch="UniformToFill" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                    <StackPanel Spacing="4">
+                        <TextBlock Classes.groupTitle="True" Text="Новинки" />
+                        <ItemsControl ItemsSource="{Binding NewReleases}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Classes.storeCard="True">
+                                        <StackPanel Spacing="4">
+                                            <Border Height="72"
+                                                    CornerRadius="6"
+                                                    ClipToBounds="True">
+                                                <Image Source="{Binding Image}"
+                                                       IsVisible="{Binding HasImage}"
+                                                       Stretch="UniformToFill" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="12"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       ToolTip.Tip="{Binding Name}" />
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>
