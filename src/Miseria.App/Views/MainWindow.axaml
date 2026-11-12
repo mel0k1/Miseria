@@ -26,6 +26,9 @@
         <DataTemplate DataType="vm:SettingsViewModel">
             <views:SettingsView />
         </DataTemplate>
+        <DataTemplate DataType="vm:ProfileViewModel">
+            <views:ProfileView />
+        </DataTemplate>
     </Window.DataTemplates>
     <ui:FANavigationView x:Name="Nav"
                          PaneDisplayMode="Left"
@@ -53,6 +56,11 @@
             <ui:FANavigationViewItem Tag="home" Content="Главная">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Home" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="profile" Content="Профиль">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Account" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="settings" Content="Настройки">

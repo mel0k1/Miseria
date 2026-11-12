@@ -19,6 +19,7 @@ public sealed class SteamSession : IDisposable
     private readonly CancellationTokenSource _pumpCts = new();
     private readonly HashSet<ulong> _friendIds = [];
     private int _libraryBusy;
+    private ulong _ownSteamId;
 
     private TaskCompletionSource _connected = NewCompletion();
     private string? _guardData;
@@ -34,8 +35,14 @@ public sealed class SteamSession : IDisposable
     public event Action<IReadOnlyList<ulong>>? FriendsLoaded;
     public event Action<FriendSnapshot>? FriendUpdated;
     public event Action<IReadOnlyList<AppSnapshot>>? LibraryLoaded;
+    public event Action<ProfileSnapshot>? ProfileUpdated;
+    public event Action<ChatMessage>? ChatMessageReceived;
+    public event Action<ulong>? FriendTyping;
+    public event Action<ulong, IReadOnlyList<ChatMessage>>? ChatHistoryLoaded;
 
     public SessionState State { get; private set; } = SessionState.Disconnected;
+
+    public ulong OwnSteamId => _ownSteamId;
 
     public SteamSession(SessionStore store)
     {
@@ -56,6 +63,8 @@ public sealed class SteamSession : IDisposable
         _manager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
         _manager.Subscribe<SteamFriends.PersonaStateCallback>(OnPersonaState);
         _manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
+        _manager.Subscribe<SteamFriends.FriendMsgCallback>(OnFriendMsg);
+        _manager.Subscribe<SteamFriends.FriendMsgHistoryCallback>(OnChatHistory);
 
         _ = Task.Run(PumpLoop);
     }
@@ -159,6 +168,22 @@ public sealed class SteamSession : IDisposable
 
     public SteamDownloader CreateDownloader() => new(_client, _apps, _content);
 
+    public void SendChatMessage(ulong steamId, string message)
+    {
+        if (State != SessionState.Online || string.IsNullOrWhiteSpace(message))
+            return;
+
+        _friends.SendChatMessage(new SteamID(steamId), EChatEntryType.ChatMsg, message);
+    }
+
+    public void RequestChatHistory(ulong steamId)
+    {
+        if (State != SessionState.Online)
+            return;
+
+        _friends.RequestMessageHistory(new SteamID(steamId));
+    }
+
     public void LogOff()
     {
         if (State != SessionState.Online)
@@ -218,7 +243,9 @@ public sealed class SteamSession : IDisposable
         if (_activeSession != null)
             _store.Save(_activeSession with { SteamId = steamId, GuardData = _guardData });
 
+        _ownSteamId = steamId;
         _friends.SetPersonaState(EPersonaState.Online);
+        _ = Task.Run(RequestOwnProfileAsync);
 
         LoggedIn?.Invoke(new AccountSnapshot(
             _accountName ?? string.Empty,
@@ -257,11 +284,98 @@ public sealed class SteamSession : IDisposable
 
     private void OnPersonaState(SteamFriends.PersonaStateCallback callback)
     {
-        if (!_friendIds.Contains(callback.FriendID))
+        var id = callback.FriendID.ConvertToUInt64();
+
+        if (id == _ownSteamId)
+        {
+            ProfileUpdated?.Invoke(BuildOwnProfile(callback));
+            return;
+        }
+
+        if (!_friendIds.Contains(id))
             return;
 
-        FriendUpdated?.Invoke(BuildFriend(callback.FriendID));
+        FriendUpdated?.Invoke(BuildFriend(id));
     }
+
+    private ProfileSnapshot BuildOwnProfile(SteamFriends.PersonaStateCallback callback)
+    {
+        var gameName = callback.GameName;
+        var inGame = callback.GameAppID != 0 || !string.IsNullOrWhiteSpace(gameName);
+
+        return new ProfileSnapshot(
+            _ownSteamId,
+            callback.Name,
+            ToAvatarHash(callback.AvatarHash),
+            inGame ? FriendPresence.InGame : MapPresence(callback.State),
+            string.IsNullOrWhiteSpace(gameName) ? null : gameName,
+            null,
+            null,
+            null,
+            null);
+    }
+
+    private async Task RequestOwnProfileAsync()
+    {
+        try
+        {
+            _friends.RequestFriendInfo(
+                new SteamID(_ownSteamId),
+                EClientPersonaStateFlag.PlayerName | EClientPersonaStateFlag.Presence | EClientPersonaStateFlag.Status);
+
+            var info = await _friends.RequestProfileInfo(new SteamID(_ownSteamId));
+
+            if (info.Result != EResult.OK)
+                return;
+
+            ProfileUpdated?.Invoke(new ProfileSnapshot(
+                _ownSteamId,
+                null,
+                null,
+                null,
+                null,
+                NonEmpty(info.RealName),
+                NonEmpty(info.CountryName),
+                NonEmpty(info.Summary),
+                info.TimeCreated == DateTime.MinValue ? null : ToUtc(info.TimeCreated)));
+        }
+        catch
+        {
+        }
+    }
+
+    private void OnFriendMsg(SteamFriends.FriendMsgCallback callback)
+    {
+        var peer = callback.Sender.ConvertToUInt64();
+
+        if (callback.EntryType == EChatEntryType.Typing)
+        {
+            FriendTyping?.Invoke(peer);
+            return;
+        }
+
+        if (callback.EntryType != EChatEntryType.ChatMsg || string.IsNullOrEmpty(callback.Message))
+            return;
+
+        ChatMessageReceived?.Invoke(new ChatMessage(peer, peer, callback.Message, ToUtc(DateTime.UtcNow)));
+    }
+
+    private void OnChatHistory(SteamFriends.FriendMsgHistoryCallback callback)
+    {
+        if (callback.Result != EResult.OK)
+            return;
+
+        var peer = callback.SteamID.ConvertToUInt64();
+
+        ChatHistoryLoaded?.Invoke(peer, callback.Messages
+            .Select(m => new ChatMessage(peer, m.SteamID.ConvertToUInt64(), m.Message, ToUtc(m.Timestamp)))
+            .OrderBy(m => m.Timestamp)
+            .ToArray());
+    }
+
+    private static string? NonEmpty(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
+
+    private static DateTimeOffset ToUtc(DateTime value) => new(value.ToUniversalTime(), TimeSpan.Zero);
 
     private FriendSnapshot BuildFriend(SteamID id)
     {
@@ -376,6 +490,7 @@ public sealed class SteamSession : IDisposable
     private void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
         _friendIds.Clear();
+        _ownSteamId = 0;
 
         if (State == SessionState.Online)
         {

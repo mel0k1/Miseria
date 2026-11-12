@@ -16,6 +16,38 @@
         <Style Selector="Ellipse.offline">
             <Setter Property="Fill" Value="{DynamicResource SystemFillColorDisabledBrush}" />
         </Style>
+        <Style Selector="Border.bubble">
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="MaxWidth" Value="300" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+        </Style>
+        <Style Selector="Border.bubble.mine">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+        </Style>
+        <Style Selector="Border.bubble TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="Border.bubble.mine TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+        </Style>
+        <Style Selector="Border.unreadBadge">
+            <Setter Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+            <Setter Property="CornerRadius" Value="9" />
+            <Setter Property="MinWidth" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="Padding" Value="5,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Grid.frow">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Margin" Value="-8,0" />
+        </Style>
+        <Style Selector="Grid.frow.selected">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        </Style>
     </UserControl.Styles>
     <Grid RowDefinitions="Auto,*"
           RowSpacing="16"
@@ -36,26 +68,125 @@
                      PlaceholderText="Поиск друзей"
                      VerticalAlignment="Center" />
         </Grid>
-        <Panel Grid.Row="1">
-            <ListBox ItemsSource="{Binding Visible}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Grid ColumnDefinitions="52,*"
-                              ColumnSpacing="12"
-                              Margin="0,6">
-                            <Border Width="44"
-                                    Height="44"
+        <Grid Grid.Row="1"
+              ColumnDefinitions="*,380"
+              ColumnSpacing="16">
+            <Panel Grid.Column="0">
+                <ListBox ItemsSource="{Binding Visible}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Classes.frow="True"
+                                  Classes.selected="{Binding IsSelected}"
+                                  Tapped="OnFriendTapped"
+                                  ColumnDefinitions="52,*,Auto"
+                                  ColumnSpacing="12"
+                                  Margin="0,6">
+                                <Border Width="44"
+                                        Height="44"
+                                        CornerRadius="4"
+                                        ClipToBounds="True"
+                                        VerticalAlignment="Center">
+                                    <Panel>
+                                        <Image Source="{Binding Avatar}"
+                                               IsVisible="{Binding HasAvatar}"
+                                               Stretch="UniformToFill" />
+                                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                IsVisible="{Binding !HasAvatar}">
+                                            <TextBlock Text="{Binding Initial}"
+                                                       FontSize="18"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </Border>
+                                    </Panel>
+                                </Border>
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Spacing="3">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="6">
+                                        <Ellipse Width="8"
+                                                 Height="8"
+                                                 VerticalAlignment="Center"
+                                                 Classes.online="{Binding IsOnline}"
+                                                 Classes.away="{Binding IsAway}"
+                                                 Classes.ingame="{Binding IsInGame}"
+                                                 Classes.offline="{Binding IsOffline}" />
+                                        <TextBlock Text="{Binding PresenceText}"
+                                                   FontSize="12"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <Border Grid.Column="2"
+                                        Classes.unreadBadge="True"
+                                        IsVisible="{Binding HasUnread}">
+                                    <TextBlock Text="{Binding UnreadCount}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                </Border>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <StackPanel IsVisible="{Binding !HasList}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="10">
+                    <ProgressBar IsIndeterminate="True"
+                                 Width="200"
+                                 Height="2" />
+                    <TextBlock Text="Получение списка друзей…"
+                               HorizontalAlignment="Center"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+                <StackPanel IsVisible="{Binding HasList}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center">
+                    <StackPanel IsVisible="{Binding !HasFriends}">
+                        <TextBlock IsVisible="{Binding SearchActive}"
+                                   Text="Никого не найдено"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock IsVisible="{Binding !SearchActive}"
+                                   Text="В списке друзей пока никого нет"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </StackPanel>
+            </Panel>
+            <Border Grid.Column="1"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                <Panel>
+                    <Grid RowDefinitions="Auto,*,Auto"
+                          RowSpacing="10"
+                          Margin="14"
+                          IsVisible="{Binding HasPeer}">
+                        <Grid Grid.Row="0"
+                              ColumnDefinitions="Auto,*,Auto"
+                              ColumnSpacing="10">
+                            <Border Width="36"
+                                    Height="36"
                                     CornerRadius="4"
-                                    ClipToBounds="True"
-                                    VerticalAlignment="Center">
+                                    ClipToBounds="True">
                                 <Panel>
-                                    <Image Source="{Binding Avatar}"
-                                           IsVisible="{Binding HasAvatar}"
+                                    <Image Source="{Binding SelectedFriend.Avatar}"
+                                           IsVisible="{Binding SelectedFriend.HasAvatar}"
                                            Stretch="UniformToFill" />
                                     <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
-                                            IsVisible="{Binding !HasAvatar}">
-                                        <TextBlock Text="{Binding Initial}"
-                                                   FontSize="18"
+                                            IsVisible="{Binding !SelectedFriend.HasAvatar}">
+                                        <TextBlock Text="{Binding SelectedFriend.Initial}"
+                                                   FontSize="15"
                                                    FontWeight="SemiBold"
                                                    HorizontalAlignment="Center"
                                                    VerticalAlignment="Center"
@@ -65,54 +196,73 @@
                             </Border>
                             <StackPanel Grid.Column="1"
                                         VerticalAlignment="Center"
-                                        Spacing="3">
-                                <TextBlock Text="{Binding Name}"
+                                        Spacing="2">
+                                <TextBlock Text="{Binding SelectedFriend.Name}"
                                            FontWeight="SemiBold"
                                            TextTrimming="CharacterEllipsis" />
-                                <StackPanel Orientation="Horizontal"
-                                            Spacing="6">
-                                    <Ellipse Width="8"
-                                             Height="8"
-                                             VerticalAlignment="Center"
-                                             Classes.online="{Binding IsOnline}"
-                                             Classes.away="{Binding IsAway}"
-                                             Classes.ingame="{Binding IsInGame}"
-                                             Classes.offline="{Binding IsOffline}" />
-                                    <TextBlock Text="{Binding PresenceText}"
-                                               FontSize="12"
-                                               TextTrimming="CharacterEllipsis"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                </StackPanel>
+                                <TextBlock Text="{Binding PeerStatusText}"
+                                           FontSize="12"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                         </Grid>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-            <StackPanel IsVisible="{Binding !HasList}"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center"
-                        Spacing="10">
-                <ProgressBar IsIndeterminate="True"
-                             Width="200"
-                             Height="2" />
-                <TextBlock Text="Получение списка друзей…"
-                           HorizontalAlignment="Center"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-            </StackPanel>
-            <StackPanel IsVisible="{Binding HasList}"
-                        HorizontalAlignment="Center"
-                        VerticalAlignment="Center">
-                <StackPanel IsVisible="{Binding !HasFriends}">
-                    <TextBlock IsVisible="{Binding SearchActive}"
-                               Text="Никого не найдено"
-                               HorizontalAlignment="Center"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                    <TextBlock IsVisible="{Binding !SearchActive}"
-                               Text="В списке друзей пока никого нет"
-                               HorizontalAlignment="Center"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                </StackPanel>
-            </StackPanel>
-        </Panel>
+                        <ScrollViewer Grid.Row="1"
+                                      x:Name="ChatScroll">
+                            <ItemsControl ItemsSource="{Binding Messages}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,3">
+                                            <Border Classes.bubble="True"
+                                                    Classes.mine="{Binding IsMine}">
+                                                <StackPanel Spacing="2">
+                                                    <TextBlock Text="{Binding Text}" />
+                                                    <TextBlock Text="{Binding TimeText}"
+                                                               FontSize="10"
+                                                               HorizontalAlignment="Right"
+                                                               Opacity="0.7" />
+                                                </StackPanel>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                        <StackPanel Grid.Row="1"
+                                    IsVisible="{Binding !HasMessages}"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="6">
+                            <TextBlock Text="Сообщений пока нет"
+                                       HorizontalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <Grid Grid.Row="2"
+                              ColumnDefinitions="*,Auto"
+                              ColumnSpacing="8">
+                            <TextBox x:Name="ChatInput"
+                                     Text="{Binding Draft}"
+                                     PlaceholderText="Сообщение"
+                                     KeyDown="OnChatKeyDown" />
+                            <Button Grid.Column="1"
+                                    Content="Отправить"
+                                    Command="{Binding SendCommand}"
+                                    VerticalAlignment="Stretch" />
+                        </Grid>
+                    </Grid>
+                    <StackPanel IsVisible="{Binding !HasPeer}"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Spacing="6">
+                        <TextBlock Text="Чат"
+                                   FontSize="16"
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" />
+                        <TextBlock Text="Выберите друга, чтобы начать переписку"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                </Panel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

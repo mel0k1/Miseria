@@ -1,0 +1,127 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.ProfileView"
+             x:DataType="vm:ProfileViewModel">
+    <UserControl.Styles>
+        <Style Selector="Ellipse.online">
+            <Setter Property="Fill" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+        </Style>
+        <Style Selector="Ellipse.away">
+            <Setter Property="Fill" Value="{DynamicResource SystemFillColorCautionBrush}" />
+        </Style>
+        <Style Selector="Ellipse.ingame">
+            <Setter Property="Fill" Value="{DynamicResource SystemFillColorAttentionBrush}" />
+        </Style>
+        <Style Selector="Ellipse.offline">
+            <Setter Property="Fill" Value="{DynamicResource SystemFillColorDisabledBrush}" />
+        </Style>
+        <Style Selector="TextBlock.rowLabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+    </UserControl.Styles>
+    <ScrollViewer>
+        <StackPanel Margin="36,32"
+                    Spacing="16"
+                    MaxWidth="640"
+                    HorizontalAlignment="Left">
+            <TextBlock Text="Профиль"
+                       FontSize="24"
+                       FontWeight="SemiBold" />
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+                <StackPanel Spacing="12">
+                    <Grid ColumnDefinitions="Auto,*"
+                          ColumnSpacing="18">
+                        <Border Width="88"
+                                Height="88"
+                                CornerRadius="6"
+                                ClipToBounds="True">
+                            <Panel>
+                                <Image Source="{Binding Avatar}"
+                                       IsVisible="{Binding HasAvatar}"
+                                       Stretch="UniformToFill" />
+                                <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                        IsVisible="{Binding !HasAvatar}">
+                                    <TextBlock Text="{Binding Initial}"
+                                               FontSize="34"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Border>
+                            </Panel>
+                        </Border>
+                        <StackPanel Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Spacing="6">
+                            <TextBlock Text="{Binding Name}"
+                                       FontSize="22"
+                                       FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="6">
+                                <Ellipse Width="8"
+                                         Height="8"
+                                         VerticalAlignment="Center"
+                                         Classes.online="{Binding IsOnline}"
+                                         Classes.away="{Binding IsAway}"
+                                         Classes.ingame="{Binding IsInGame}"
+                                         Classes.offline="{Binding IsOffline}" />
+                                <TextBlock Text="{Binding PresenceText}"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding AccountName}"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock Text="{Binding SteamIdText}"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+                <StackPanel Spacing="12">
+                    <StackPanel Spacing="2"
+                                IsVisible="{Binding HasRealName}">
+                        <TextBlock Classes.rowLabel="True" Text="Настоящее имя" />
+                        <TextBlock Text="{Binding RealName}" />
+                    </StackPanel>
+                    <StackPanel Spacing="2"
+                                IsVisible="{Binding HasCountry}">
+                        <TextBlock Classes.rowLabel="True" Text="Страна" />
+                        <TextBlock Text="{Binding Country}" />
+                    </StackPanel>
+                    <StackPanel Spacing="2"
+                                IsVisible="{Binding HasMemberSince}">
+                        <TextBlock Classes.rowLabel="True" Text="В Steam с" />
+                        <TextBlock Text="{Binding MemberSinceText}" />
+                    </StackPanel>
+                    <HyperlinkButton Content="Открыть профиль в Steam"
+                                     NavigateUri="{Binding ProfileUrl}"
+                                     Padding="0" />
+                </StackPanel>
+            </Border>
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20"
+                    IsVisible="{Binding HasSummary}">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes.rowLabel="True" Text="Обзор" />
+                    <TextBlock Text="{Binding Summary}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

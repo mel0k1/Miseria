@@ -24,9 +24,17 @@ public partial class FriendItem : ObservableObject
     [ObservableProperty]
     private bool _hasAvatar;
 
+    [ObservableProperty]
+    private int _unreadCount;
+
+    [ObservableProperty]
+    private bool _isSelected;
+
     public ulong SteamId { get; }
 
     public FriendItem(ulong steamId) => SteamId = steamId;
+
+    public bool HasUnread => UnreadCount > 0;
 
     public bool IsInGame => Presence == FriendPresence.InGame;
 
@@ -61,6 +69,8 @@ public partial class FriendItem : ObservableObject
     }
 
     partial void OnGameNameChanged(string? value) => OnPropertyChanged(nameof(PresenceText));
+
+    partial void OnUnreadCountChanged(int value) => OnPropertyChanged(nameof(HasUnread));
 
     public void UpdateFrom(FriendSnapshot snapshot)
     {

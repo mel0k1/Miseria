@@ -126,6 +126,7 @@ internal static class Program
             .AddSingleton<HomeViewModel>()
             .AddSingleton<LibraryViewModel>()
             .AddSingleton<DownloadViewModel>()
+            .AddSingleton<ProfileViewModel>()
             .AddSingleton<SettingsViewModel>()
             .BuildServiceProvider();
 
@@ -181,6 +182,19 @@ internal static class Program
 
         home.Initialize(new AccountSnapshot("mel0k1", 76561198012345678, "RU", false));
 
+        var profile = main.Profile;
+        profile.Initialize(new AccountSnapshot("mel0k1", 76561198012345678, "RU", false));
+        profile.ApplySnapshot(new ProfileSnapshot(
+            76561198012345678,
+            "mel0k1",
+            null,
+            FriendPresence.Online,
+            null,
+            null,
+            "Россия",
+            "Люблю инди-игры и старые шутеры.",
+            new DateTimeOffset(2013, 5, 17, 12, 0, 0, TimeSpan.Zero)));
+
         logon.Username = "mel0k1";
         logon.Password = "correct-horse";
 
@@ -216,10 +230,24 @@ internal static class Program
         await PumpAsync();
         await CaptureAsync(window, Path.Combine(outDir, "home-dark.png"));
 
+        window.NavigateTo("profile");
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "profile-dark.png"));
+
         theme.Apply(AppTheme.Kiwi);
         window.NavigateTo("friends");
         await PumpAsync();
         await CaptureAsync(window, Path.Combine(outDir, "friends-kiwi.png"));
+
+        theme.Apply(AppTheme.Dark);
+        window.NavigateTo("friends");
+        friends.OpenChat(friends.Friends[0]);
+        friends.Messages.Add(new ChatBubble("Ну что, готов к катке?", new DateTimeOffset(2026, 1, 17, 19, 41, 0, TimeSpan.Zero), false));
+        friends.Messages.Add(new ChatBubble("Ща зайду, минуточку", new DateTimeOffset(2026, 1, 17, 19, 42, 0, TimeSpan.Zero), true));
+        friends.Messages.Add(new ChatBubble("Го новую карту", new DateTimeOffset(2026, 1, 17, 19, 42, 30, TimeSpan.Zero), false));
+        friends.Messages.Add(new ChatBubble("Давай, только премьер", new DateTimeOffset(2026, 1, 17, 19, 43, 0, TimeSpan.Zero), true));
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "chat-dark.png"));
 
         window.Close();
     }

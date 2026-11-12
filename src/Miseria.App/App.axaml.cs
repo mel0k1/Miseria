@@ -44,6 +44,7 @@ public class App : Application
         collection.AddSingleton<HomeViewModel>();
         collection.AddSingleton<LibraryViewModel>();
         collection.AddSingleton<DownloadViewModel>();
+        collection.AddSingleton<ProfileViewModel>();
         collection.AddSingleton<SettingsViewModel>();
 
         _services = collection.BuildServiceProvider();
