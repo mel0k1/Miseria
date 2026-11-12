@@ -83,7 +83,7 @@ public partial class GroupsViewModel : ObservableObject
 
         PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName is nameof(Section) or nameof(SelectedGroup))
+            if (e.PropertyName is nameof(Section) or nameof(IsAnnouncementsMode) or nameof(IsDiscussionsMode))
                 OnPropertyChanged(nameof(FeedHintText));
         };
     }
@@ -235,9 +235,10 @@ public partial class GroupsViewModel : ObservableObject
     [RelayCommand]
     private Task ShowDiscussions() => SetSectionAsync(2);
 
-    private void SetSection(int value)
+    private void SetSection(int value) => Section = value;
+
+    partial void OnSectionChanged(int value)
     {
-        Section = value;
         OnPropertyChanged(nameof(IsGroupsMode));
         OnPropertyChanged(nameof(IsAnnouncementsMode));
         OnPropertyChanged(nameof(IsDiscussionsMode));
@@ -358,11 +359,15 @@ public partial class GroupsViewModel : ObservableObject
 
     partial void OnSelectedGroupChanged(GroupItem? value)
     {
+        FeedHintUpdate();
+
         if (Section != 0)
             _ = value == null
                 ? Task.CompletedTask
                 : LoadFeedAsync(value, Section);
     }
+
+    private void FeedHintUpdate() => OnPropertyChanged(nameof(FeedHintText));
 
     private void Reset()
     {

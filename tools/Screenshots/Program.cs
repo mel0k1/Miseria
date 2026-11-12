@@ -130,10 +130,12 @@ internal static class Program
             .AddSingleton<TradeService>()
             .AddSingleton<WorkshopService>()
             .AddSingleton<GroupService>()
+            .AddSingleton<ActivityService>()
             .AddSingleton<CommunityService>()
             .AddSingleton<LogonViewModel>()
             .AddSingleton<MainViewModel>()
             .AddSingleton<FriendsViewModel>()
+            .AddSingleton<FeedViewModel>()
             .AddSingleton<HomeViewModel>()
             .AddSingleton<LibraryViewModel>()
             .AddSingleton<DownloadViewModel>()
@@ -199,6 +201,8 @@ internal static class Program
 
         await BuildFakeTradesAsync(services, friends);
         await Task.Delay(12000);
+
+        await main.Feed.EnsureLoadedAsync();
 
         home.Initialize(new AccountSnapshot("mel0k1", 76561198012345678, "RU", false));
 
@@ -272,6 +276,18 @@ internal static class Program
         await Task.Delay(1500);
         await CaptureAsync(window, Path.Combine(outDir, "market-dark.png"));
 
+        if (main.Market.Results.Count > 0)
+        {
+            main.Market.StartBuyOrderCommand.Execute(null);
+            await Task.Delay(4000);
+            main.Market.OrderPriceInput = "24.99";
+            main.Market.OrderQuantityInput = "2";
+            await PumpAsync();
+            await CaptureAsync(window, Path.Combine(outDir, "market-buyorder-dark.png"));
+            main.Market.CancelOrderPanelCommand.Execute(null);
+            await PumpAsync();
+        }
+
         window.NavigateTo("trades");
         await Task.Delay(2200);
         await CaptureAsync(window, Path.Combine(outDir, "trades-dark.png"));
@@ -299,9 +315,25 @@ internal static class Program
         await PumpAsync();
         await CaptureAsync(window, Path.Combine(outDir, "groups-dark.png"));
 
+        await SeedGroupFeedAsync(main.Groups);
+        main.Groups.Section = 1;
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "groups-announcements-dark.png"));
+        main.Groups.Section = 2;
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "groups-discussions-dark.png"));
+        main.Groups.Section = 0;
+        await PumpAsync();
+
         window.NavigateTo("community");
         await Task.Delay(5000);
         await CaptureAsync(window, Path.Combine(outDir, "community-dark.png"));
+
+        window.NavigateTo("feed");
+        await PumpAsync();
+        await SeedFeedAsync(main.Feed);
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "feed-dark.png"));
 
         theme.Apply(AppTheme.Kiwi);
         window.NavigateTo("friends");
@@ -544,6 +576,92 @@ internal static class Program
             workshop.SelectedItem = workshop.Items[0];
             workshop.ActionMessage = string.Empty;
         }
+    }
+
+    private static async Task SeedFeedAsync(FeedViewModel feed)
+    {
+        var entries = new[]
+        {
+            ("Dmitry", "добавил Counter-Strike 2 в свои избранные игры", "12 минут назад"),
+            ("Anna", "сделала новый скриншот в Hades", "38 минут назад"),
+            ("PixelPioneer", "написал обзор на Half-Life: Alyx: «Лучшая VR-игра на рынке, без вопросов»", "1 час назад"),
+            ("wolflord", "начал играть в Dota 2", "2 часа назад"),
+            ("Sasha", "приобрёл Deep Rock Galactic", "3 часа назад"),
+            ("PixelPioneer", "успешно обменял 4 предмета с Anna", "5 часов назад"),
+            ("Anna", "добавила в свою коллекцию трофей «Золото ада» в Celeste", "вчера")
+        };
+
+        feed.Entries.Clear();
+
+        for (var i = 0; i < entries.Length; i++)
+        {
+            var (name, text, when) = entries[i];
+            var item = new ActivityItem(new ActivitySnapshot(
+                name,
+                $"https://steamcommunity.com/id/{name.ToLowerInvariant()}",
+                null,
+                text,
+                when,
+                null));
+            item.SetAvatar(CreateAvatar(name, i));
+            feed.Entries.Add(item);
+        }
+
+        feed.StatusText = $"Записей: {feed.Entries.Count}";
+    }
+
+    private static async Task SeedGroupFeedAsync(GroupsViewModel groups)
+    {
+        groups.Announcements.Clear();
+        groups.Announcements.Add(new AnnouncementItem(
+            "Обновление Steam Client от 12 ноября",
+            "https://steamcommunity.com/groups/valvesoftware/announcements/detail/1",
+            "12 ноября",
+            "Исправлены сбои в чате друзей, ускорена загрузка мастерской и добавлены новые фильтры в библиотеке. Полный список изменений доступен в блоге Steam."));
+        groups.Announcements.Add(new AnnouncementItem(
+            "Осенняя распродажа начнётся 25 ноября",
+            "https://steamcommunity.com/groups/valvesoftware/announcements/detail/2",
+            "8 ноября",
+            "Не забудьте собрать карточки распродажи, проголосовать за любимые игры и получить уникальный профильный бейдж. Скидки коснутся более 15 тысяч приложений."));
+        groups.Announcements.Add(new AnnouncementItem(
+            "Обновление драйверов Steam Deck",
+            "https://steamcommunity.com/groups/valvesoftware/announcements/detail/3",
+            "5 ноября",
+            "Выпущено обновление прошивки с улучшением производительности в актуальных играх, стабильности Wi-Fi и времени работы от батареи."));
+        groups.Announcements.Add(new AnnouncementItem(
+            "Итоги конкурса скриншотов",
+            "https://steamcommunity.com/groups/cs2community/announcements/detail/4",
+            "3 ноября",
+            "Победители осеннего конкурса скриншотов определены. Лучшие работы опубликованы в витрине группы — поздравляем авторов и благодарим всех участников."));
+
+        groups.Discussions.Clear();
+        groups.Discussions.Add(new DiscussionItem(
+            "Ваш топ-10 игр за 2026 год?",
+            "https://steamcommunity.com/groups/valvesoftware/discussions/0/1/",
+            "PixelPioneer",
+            "Автор: PixelPioneer · Ответов: 42 · Последнее: 12 ноября, 18:40"));
+        groups.Discussions.Add(new DiscussionItem(
+            "Проблема с синхронизацией облачных сохранений",
+            "https://steamcommunity.com/groups/valvesoftware/discussions/0/2/",
+            "wolflord",
+            "Автор: wolflord · Ответов: 7 · Последнее: 12 ноября, 16:05"));
+        groups.Discussions.Add(new DiscussionItem(
+            "Ищем игроков в кооператив на Deep Rock Galactic",
+            "https://steamcommunity.com/groups/indiehunt/discussions/0/3/",
+            "Sasha",
+            "Автор: Sasha · Ответов: 15 · Последнее: 11 ноября, 21:30"));
+        groups.Discussions.Add(new DiscussionItem(
+            "Как вернуть классический вид библиотеки?",
+            "https://steamcommunity.com/groups/cs2community/discussions/0/4/",
+            "Anna",
+            "Автор: Anna · Ответов: 3 · Последнее: 11 ноября, 14:12"));
+        groups.Discussions.Add(new DiscussionItem(
+            "Прогнозы по скидкам на распродаже",
+            "https://steamcommunity.com/groups/indiehunt/discussions/0/5/",
+            "Dmitry",
+            "Автор: Dmitry · Ответов: 23 · Последнее: 10 ноября, 19:58"));
+
+        groups.FeedStatusText = $"Анонсов: {groups.Announcements.Count} · Тем: {groups.Discussions.Count}";
     }
 
     private static async Task SeedGroupsAsync(GroupsViewModel groups, IServiceProvider services)
