@@ -132,6 +132,7 @@ internal static class Program
             .AddSingleton<GroupService>()
             .AddSingleton<ActivityService>()
             .AddSingleton<CommunityService>()
+            .AddSingleton<ProfileService>()
             .AddSingleton<LogonViewModel>()
             .AddSingleton<MainViewModel>()
             .AddSingleton<FriendsViewModel>()
@@ -218,6 +219,24 @@ internal static class Program
             "Россия",
             "Люблю инди-игры и старые шутеры.",
             new DateTimeOffset(2013, 5, 17, 12, 0, 0, TimeSpan.Zero)));
+
+        profile.Level = 42;
+        profile.GamesCount = 214;
+        profile.TotalHours = 9316.4;
+        profile.TopGames.Add(new ProfileGameRow("Counter-Strike 2", "2 413 ч."));
+        profile.TopGames.Add(new ProfileGameRow("Terraria", "318,5 ч."));
+        profile.TopGames.Add(new ProfileGameRow("Stardew Valley", "147 ч."));
+        profile.TopGames.Add(new ProfileGameRow("Hollow Knight", "86 ч."));
+
+        for (var i = 0; i < 6; i++)
+        {
+            var row = new ProfileScreenshotRow(
+                string.Empty,
+                "https://steamcommunity.com",
+                services.GetRequiredService<ItemIconCache>());
+            row.SetImage(CreateScreenshot(i));
+            profile.Screenshots.Add(row);
+        }
 
         logon.Username = "mel0k1";
         logon.Password = "correct-horse";
@@ -784,6 +803,29 @@ internal static class Program
         });
 
         await Task.Delay(30);
+    }
+
+    private static Bitmap CreateScreenshot(int index)
+    {
+        const int width = 296;
+        const int height = 167;
+        var bitmap = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96));
+
+        using (var context = bitmap.CreateDrawingContext())
+        {
+            var from = AvatarColors[index % AvatarColors.Length];
+            var to = AvatarColors[(index + 3) % AvatarColors.Length];
+            var brush = new LinearGradientBrush
+            {
+                StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+                EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative)
+            };
+            brush.GradientStops.Add(new GradientStop(from, 0));
+            brush.GradientStops.Add(new GradientStop(to, 1));
+            context.FillRectangle(brush, new Rect(0, 0, width, height));
+        }
+
+        return bitmap;
     }
 
     private static Bitmap CreateAvatar(string name, int index)

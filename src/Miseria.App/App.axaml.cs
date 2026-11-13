@@ -50,6 +50,7 @@ public class App : Application
         collection.AddSingleton<GroupService>();
         collection.AddSingleton<ActivityService>();
         collection.AddSingleton<CommunityService>();
+        collection.AddSingleton<ProfileService>();
         collection.AddSingleton<LogonViewModel>();
         collection.AddSingleton<MainViewModel>();
         collection.AddSingleton<FriendsViewModel>();

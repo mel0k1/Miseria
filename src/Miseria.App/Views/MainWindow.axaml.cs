@@ -19,6 +19,7 @@ public partial class MainWindow : Window
         ViewModel = viewModel;
         DataContext = viewModel;
         viewModel.Download.Started += OnDownloadStarted;
+        viewModel.Friends.ProfileRequested += OnProfileRequested;
     }
 
     public MainViewModel ViewModel { get; private set; } = null!;
@@ -32,6 +33,12 @@ public partial class MainWindow : Window
     private void OnDownloadStarted()
     {
         Dispatcher.UIThread.Post(() => NavigateTo("downloads"));
+    }
+
+    private void OnProfileRequested(FriendItem item)
+    {
+        ViewModel.Profile.OpenFriend(item);
+        Dispatcher.UIThread.Post(() => NavigateTo("profile"));
     }
 
     public void NavigateTo(string tag)

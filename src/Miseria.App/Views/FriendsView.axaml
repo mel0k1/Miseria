@@ -205,6 +205,10 @@
                                            TextTrimming="CharacterEllipsis"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
+                            <Button Grid.Column="2"
+                                    Content="Профиль"
+                                    Command="{Binding OpenProfileCommand}"
+                                    VerticalAlignment="Center" />
                         </Grid>
                         <ScrollViewer Grid.Row="1"
                                       x:Name="ChatScroll">

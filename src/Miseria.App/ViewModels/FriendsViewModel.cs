@@ -42,6 +42,8 @@ public partial class FriendsViewModel : ObservableObject
 
     public FriendItem? SelectedFriend => _selectedFriend;
 
+    public event Action<FriendItem>? ProfileRequested;
+
     public bool HasFriends => Friends.Count > 0;
 
     public bool SearchActive => SearchText.Trim().Length > 0;
@@ -115,6 +117,13 @@ public partial class FriendsViewModel : ObservableObject
 
         if (_session.State == SessionState.Online && _historyRequested.Add(item.SteamId))
             _session.RequestChatHistory(item.SteamId);
+    }
+
+    [RelayCommand]
+    private void OpenProfile()
+    {
+        if (SelectedFriend != null)
+            ProfileRequested?.Invoke(SelectedFriend);
     }
 
     [RelayCommand]

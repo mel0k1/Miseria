@@ -13,6 +13,7 @@ A minimal Steam client built on [SteamKit2](https://github.com/SteamRE/SteamKit)
 - Friends activity feed: recent friend and group events from the community blotter with avatars and timestamps
 - Friend chat: messages, typing indicator, unread badges and server-side history
 - Profile page: avatar, persona name, status, country, summary, member since and Steam id
+- Friend profiles: open a friend's card from the chat header with level, games and hours counters, top games by playtime, recent screenshots, location and summary, private profiles detected gracefully
 - Marketplace through the Steam Web API: item search with app and currency filters, price overview (lowest, median, daily volume) and personal sell listings with buy orders that can be cancelled
 - Market buy orders: place a buy order with a per-item price and quantity, order book with the best bid and lowest ask when Steam exposes it, orders appear next to sell listings and can be cancelled
 - Inventory browser: items per app and context with icons, tradable and marketable badges, descriptions and price overview for each item

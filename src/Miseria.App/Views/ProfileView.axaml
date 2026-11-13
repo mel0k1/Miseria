@@ -26,9 +26,19 @@
                     Spacing="16"
                     MaxWidth="640"
                     HorizontalAlignment="Left">
-            <TextBlock Text="Профиль"
-                       FontSize="24"
-                       FontWeight="SemiBold" />
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding TitleText}"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <Button Grid.Column="1"
+                        Content="Мой профиль"
+                        Command="{Binding BackToOwnCommand}"
+                        IsVisible="{Binding HasBack}"
+                        VerticalAlignment="Center" />
+            </Grid>
+            <TextBlock Text="{Binding StatusText}"
+                       IsVisible="{Binding HasStatus}"
+                       Foreground="{DynamicResource SystemFillColorCautionBrush}" />
             <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
@@ -77,11 +87,145 @@
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </StackPanel>
                             <TextBlock Text="{Binding AccountName}"
+                                       IsVisible="{Binding HasAccountName}"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             <TextBlock Text="{Binding SteamIdText}"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </Grid>
+                </StackPanel>
+            </Border>
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20">
+                <Panel>
+                    <StackPanel IsVisible="{Binding ExtrasBusy}"
+                                Spacing="10">
+                        <ProgressBar IsIndeterminate="True"
+                                     Width="220"
+                                     Height="2" />
+                        <TextBlock Text="Загрузка данных профиля…"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <Grid IsVisible="{Binding !ExtrasBusy}">
+                        <TextBlock IsVisible="{Binding IsPrivate}"
+                                   Text="Профиль скрыт настройками приватности"
+                                   HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <Grid IsVisible="{Binding !IsPrivate}"
+                              ColumnDefinitions="*,*,*">
+                            <StackPanel Grid.Column="0"
+                                        HorizontalAlignment="Center"
+                                        Spacing="4">
+                                <Border Background="{DynamicResource SystemFillColorSuccessBrush}"
+                                        CornerRadius="10"
+                                        Padding="12,4"
+                                        HorizontalAlignment="Center"
+                                        IsVisible="{Binding HasLevel}">
+                                    <TextBlock Text="{Binding LevelText}"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                                </Border>
+                                <TextBlock Text="—"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           IsVisible="{Binding !HasLevel}"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <TextBlock Text="Уровень"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1"
+                                        HorizontalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="{Binding GamesCountText}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Игр"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2"
+                                        HorizontalAlignment="Center"
+                                        Spacing="4">
+                                <TextBlock Text="{Binding TotalHoursText}"
+                                           FontSize="20"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center" />
+                                <TextBlock Text="Часов в играх"
+                                           FontSize="11"
+                                           HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Panel>
+            </Border>
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20"
+                    IsVisible="{Binding HasGames}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Часто играемые"
+                               FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding TopGames}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileGameRow">
+                                <Grid ColumnDefinitions="*,Auto"
+                                      Margin="0,4">
+                                    <TextBlock Text="{Binding Name}"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding HoursText}"
+                                               Margin="12,0,0,0"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="20"
+                    IsVisible="{Binding HasScreenshots}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Скриншоты"
+                               FontWeight="SemiBold" />
+                    <ItemsControl ItemsSource="{Binding Screenshots}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ProfileScreenshotRow">
+                                <HyperlinkButton NavigateUri="{Binding DetailsUrl}"
+                                                 Margin="0,0,8,8"
+                                                 Padding="0">
+                                    <Border Width="148"
+                                            Height="83"
+                                            CornerRadius="6"
+                                            ClipToBounds="True"
+                                            Background="{DynamicResource ControlFillColorDefaultBrush}">
+                                        <Image Source="{Binding Image}"
+                                               IsVisible="{Binding HasImage}"
+                                               Stretch="UniformToFill" />
+                                    </Border>
+                                </HyperlinkButton>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
             </Border>
             <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
@@ -97,7 +241,7 @@
                     </StackPanel>
                     <StackPanel Spacing="2"
                                 IsVisible="{Binding HasCountry}">
-                        <TextBlock Classes.rowLabel="True" Text="Страна" />
+                        <TextBlock Classes.rowLabel="True" Text="{Binding CountryLabel}" />
                         <TextBlock Text="{Binding Country}" />
                     </StackPanel>
                     <StackPanel Spacing="2"
