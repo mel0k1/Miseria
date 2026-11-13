@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -16,6 +17,7 @@ public sealed class SteamSession : IDisposable
     private readonly SteamApps _apps;
     private readonly SteamContent _content;
     private readonly Parental _parental;
+    private readonly Player _player;
     private readonly SessionStore _store;
     private readonly CancellationTokenSource _pumpCts = new();
     private readonly HashSet<ulong> _friendIds = [];
@@ -60,6 +62,7 @@ public sealed class SteamSession : IDisposable
         _apps = _client.GetHandler<SteamApps>()!;
         _content = _client.GetHandler<SteamContent>()!;
         _parental = _client.GetHandler<SteamUnifiedMessages>()!.CreateService<Parental>();
+        _player = _client.GetHandler<SteamUnifiedMessages>()!.CreateService<Player>();
 
         _manager.Subscribe<SteamClient.ConnectedCallback>(_ => _connected.TrySetResult());
         _manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
@@ -288,6 +291,103 @@ public sealed class SteamSession : IDisposable
         });
 
         return response.Result == EResult.OK;
+    }
+
+    public async Task<GameAchievementsSnapshot?> LoadAchievementsAsync(uint appId, string language, CancellationToken cancellationToken = default)
+    {
+        await EnsureConnectedAsync(cancellationToken);
+
+        CPlayer_GetGameAchievements_Response game;
+
+        try
+        {
+            var response = await _player.GetGameAchievements(new CPlayer_GetGameAchievements_Request
+            {
+                appid = appId,
+                language = language
+            });
+
+            if (response.Result != EResult.OK || response.Body == null)
+                return null;
+
+            game = response.Body;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+
+        var groupNames = new Dictionary<uint, string>();
+
+        foreach (var group in game.groups)
+            groupNames[group.groupid] = group.localized_name ?? string.Empty;
+
+        var states = new Dictionary<uint, CPlayer_GetUserAchievements_Response.Achievement>();
+
+        if (_ownSteamId != 0)
+        {
+            try
+            {
+                var user = await _player.GetUserAchievements(new CPlayer_GetUserAchievements_Request
+                {
+                    steamid = _ownSteamId,
+                    appid = appId
+                });
+
+                if (user.Result == EResult.OK && user.Body != null)
+                    foreach (var row in user.Body.achievements)
+                        states[row.internal_key] = row;
+            }
+            catch (InvalidOperationException)
+            {
+            }
+        }
+
+        var items = new List<AchievementSnapshot>();
+
+        foreach (var achievement in game.achievements)
+        {
+            if (achievement.archived)
+                continue;
+
+            states.TryGetValue(achievement.internal_key, out var state);
+            var unlocked = state?.unlocked ?? false;
+            DateTimeOffset? unlockTime = unlocked && state is { unlock_time: > 0 }
+                ? DateTimeOffset.FromUnixTimeSeconds(state.unlock_time)
+                : null;
+
+            items.Add(new AchievementSnapshot(
+                achievement.localized_name ?? achievement.internal_name ?? string.Empty,
+                achievement.localized_desc,
+                achievement.hidden,
+                AchievementIconUrl(appId, achievement.icon),
+                AchievementIconUrl(appId, achievement.icon_gray),
+                double.TryParse(achievement.player_percent_unlocked, NumberStyles.Float, CultureInfo.InvariantCulture, out var percent) ? percent : 0d,
+                unlocked,
+                unlockTime,
+                state?.progress_int ?? 0,
+                achievement.min_progress_int,
+                achievement.max_progress_int,
+                groupNames.GetValueOrDefault(achievement.groupid) is { Length: > 0 } name ? name : null));
+        }
+
+        items = items
+            .OrderByDescending(a => a.Unlocked)
+            .ThenByDescending(a => a.UnlockTime ?? DateTimeOffset.MinValue)
+            .ThenBy(a => a.GlobalPercent)
+            .ToList();
+
+        return new GameAchievementsSnapshot(appId, items);
+    }
+
+    private static string AchievementIconUrl(uint appId, string? file)
+    {
+        if (string.IsNullOrWhiteSpace(file))
+            return string.Empty;
+
+        return file.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? file
+            : $"https://cdn.cloudflare.steamstatic.com/steamcommunity/public/images/apps/{appId}/{file}";
     }
 
     private void OnFriendsList(SteamFriends.FriendsListCallback callback)

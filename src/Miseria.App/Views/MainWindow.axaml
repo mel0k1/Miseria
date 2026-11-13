@@ -50,6 +50,9 @@
         <DataTemplate DataType="vm:ProfileViewModel">
             <views:ProfileView />
         </DataTemplate>
+        <DataTemplate DataType="vm:AchievementsViewModel">
+            <views:AchievementsView />
+        </DataTemplate>
     </Window.DataTemplates>
     <ui:FANavigationView x:Name="Nav"
                          PaneDisplayMode="Left"
@@ -72,6 +75,11 @@
             <ui:FANavigationViewItem Tag="library" Content="Библиотека">
                 <ui:FANavigationViewItem.IconSource>
                     <ui:FASymbolIconSource Symbol="Games" />
+                </ui:FANavigationViewItem.IconSource>
+            </ui:FANavigationViewItem>
+            <ui:FANavigationViewItem Tag="achievements" Content="Достижения">
+                <ui:FANavigationViewItem.IconSource>
+                    <ui:FASymbolIconSource Symbol="Star" />
                 </ui:FANavigationViewItem.IconSource>
             </ui:FANavigationViewItem>
             <ui:FANavigationViewItem Tag="downloads" Content="Загрузки">

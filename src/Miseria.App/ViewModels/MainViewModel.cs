@@ -13,6 +13,8 @@ public partial class MainViewModel : ObservableObject
 
     public LibraryViewModel Library { get; }
 
+    public AchievementsViewModel Achievements { get; }
+
     public DownloadViewModel Download { get; }
 
     public MarketViewModel Market { get; }
@@ -34,12 +36,13 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private ObservableObject? _currentPage;
 
-    public MainViewModel(FriendsViewModel friends, FeedViewModel feed, HomeViewModel home, LibraryViewModel library, DownloadViewModel download, MarketViewModel market, InventoryViewModel inventory, TradesViewModel trades, WorkshopViewModel workshop, GroupsViewModel groups, CommunityViewModel community, ProfileViewModel profile, SettingsViewModel settings)
+    public MainViewModel(FriendsViewModel friends, FeedViewModel feed, HomeViewModel home, LibraryViewModel library, AchievementsViewModel achievements, DownloadViewModel download, MarketViewModel market, InventoryViewModel inventory, TradesViewModel trades, WorkshopViewModel workshop, GroupsViewModel groups, CommunityViewModel community, ProfileViewModel profile, SettingsViewModel settings)
     {
         Friends = friends;
         Feed = feed;
         Home = home;
         Library = library;
+        Achievements = achievements;
         Download = download;
         Market = market;
         Inventory = inventory;
@@ -66,6 +69,7 @@ public partial class MainViewModel : ObservableObject
             "home" => Home,
             "feed" => Feed,
             "library" => Library,
+            "achievements" => Achievements,
             "downloads" => Download,
             "market" => Market,
             "inventory" => Inventory,

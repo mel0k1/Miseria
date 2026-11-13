@@ -1,0 +1,169 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Miseria.App.ViewModels"
+             x:Class="Miseria.App.Views.AchievementsView"
+             x:DataType="vm:AchievementsViewModel">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.cardLabel">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Border.achRow">
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="Border.achRow:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        </Style>
+        <Style Selector="Border.locked Image">
+            <Setter Property="Opacity" Value="0.45" />
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto"
+          RowSpacing="12"
+          Margin="28,24,28,16">
+        <Grid Grid.Row="0"
+              ColumnDefinitions="*,190,Auto"
+              ColumnSpacing="12">
+            <StackPanel Spacing="2">
+                <TextBlock Text="Достижения"
+                           FontSize="24"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="{Binding StatusText}"
+                           FontSize="12"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding Apps}"
+                      SelectedItem="{Binding SelectedApp}"
+                      DisplayMemberBinding="{Binding Name}"
+                      VerticalAlignment="Center" />
+            <Button Grid.Column="2"
+                    Content="Обновить"
+                    Command="{Binding RefreshCommand}"
+                    VerticalAlignment="Center" />
+        </Grid>
+        <Border Grid.Row="1"
+                IsVisible="{Binding HasStats}"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14,10">
+            <Grid ColumnDefinitions="*,110"
+                  ColumnSpacing="16">
+                <ProgressBar VerticalAlignment="Center"
+                             Height="5"
+                             Value="{Binding ProgressValue}" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding ProgressText}"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+        <Grid Grid.Row="2"
+              ColumnDefinitions="240,160,*"
+              ColumnSpacing="12"
+              IsVisible="{Binding HasAchievements}">
+            <TextBox PlaceholderText="Поиск достижений"
+                     Text="{Binding SearchText}" />
+            <ComboBox Grid.Column="1"
+                      ItemsSource="{Binding Filters}"
+                      SelectedItem="{Binding SelectedFilter}"
+                      DisplayMemberBinding="{Binding Name}"
+                      HorizontalAlignment="Left"
+                      MinWidth="160" />
+        </Grid>
+        <ScrollViewer Grid.Row="3">
+            <ItemsControl ItemsSource="{Binding Achievements}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Classes.achRow="True"
+                                Classes.unlocked="{Binding IsUnlocked}"
+                                Classes.locked="{Binding !IsUnlocked}">
+                            <Grid ColumnDefinitions="44,*,Auto"
+                                  ColumnSpacing="14">
+                                <Border Width="44"
+                                        Height="44"
+                                        CornerRadius="4"
+                                        ClipToBounds="True"
+                                        Background="{DynamicResource ControlFillColorDefaultBrush}">
+                                    <Image Source="{Binding Image}"
+                                           IsVisible="{Binding HasImage}"
+                                           Stretch="Uniform"
+                                           Margin="2" />
+                                </Border>
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Spacing="2">
+                                    <TextBlock Text="{Binding Name}"
+                                               FontWeight="SemiBold"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Description}"
+                                               FontSize="11"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="CharacterEllipsis"
+                                               MaxHeight="40"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               IsVisible="{Binding HasDescription}" />
+                                    <TextBlock Text="Секретное достижение"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               IsVisible="{Binding IsSecret}" />
+                                    <TextBlock Text="{Binding ProgressText}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource AccentFillColorDefaultBrush}"
+                                               IsVisible="{Binding HasProgress}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2"
+                                            VerticalAlignment="Center"
+                                            Spacing="2">
+                                    <TextBlock Text="{Binding UnlockText}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+                                               HorizontalAlignment="Right"
+                                               IsVisible="{Binding HasUnlockText}" />
+                                    <TextBlock Text="{Binding GlobalText}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+        <StackPanel Grid.Row="3"
+                    IsVisible="{Binding IsEmpty}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="8">
+            <TextBlock Text="{Binding EmptyTitle}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding EmptyText}"
+                       TextWrapping="Wrap"
+                       MaxWidth="420"
+                       TextAlignment="Center"
+                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <Grid Grid.Row="3"
+              IsVisible="{Binding IsBusy}">
+            <StackPanel HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Spacing="10">
+                <ProgressBar IsIndeterminate="True"
+                             Width="200"
+                             Height="2" />
+                <TextBlock Text="Загрузка достижений…"
+                           HorizontalAlignment="Center"
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -57,6 +57,7 @@ public class App : Application
         collection.AddSingleton<FeedViewModel>();
         collection.AddSingleton<HomeViewModel>();
         collection.AddSingleton<LibraryViewModel>();
+        collection.AddSingleton<AchievementsViewModel>();
         collection.AddSingleton<DownloadViewModel>();
         collection.AddSingleton<MarketViewModel>();
         collection.AddSingleton<InventoryViewModel>();

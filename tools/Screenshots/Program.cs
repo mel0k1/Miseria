@@ -139,6 +139,7 @@ internal static class Program
             .AddSingleton<FeedViewModel>()
             .AddSingleton<HomeViewModel>()
             .AddSingleton<LibraryViewModel>()
+            .AddSingleton<AchievementsViewModel>()
             .AddSingleton<DownloadViewModel>()
             .AddSingleton<MarketViewModel>()
             .AddSingleton<InventoryViewModel>()
@@ -276,6 +277,11 @@ internal static class Program
         window.NavigateTo("profile");
         await PumpAsync();
         await CaptureAsync(window, Path.Combine(outDir, "profile-dark.png"));
+
+        window.NavigateTo("achievements");
+        SeedAchievements(main.Achievements, services);
+        await PumpAsync();
+        await CaptureAsync(window, Path.Combine(outDir, "achievements-dark.png"));
 
         window.NavigateTo("market");
         await WaitForMarketAsync(main.Market);
@@ -498,6 +504,51 @@ internal static class Program
             trades.OwnItems[2].IsSelected = true;
 
         trades.TheirStatusText = "Инвентарь друга пуст или закрыт настройками приватности";
+    }
+
+    private static void SeedAchievements(AchievementsViewModel achievements, IServiceProvider services)
+    {
+        var icons = services.GetRequiredService<ItemIconCache>();
+
+        achievements.SelectedApp = achievements.Apps.FirstOrDefault(a => a.AppId == 730) ?? achievements.Apps.FirstOrDefault();
+        achievements.StatusText = "Открыто 37 из 50";
+        achievements.ProgressValue = 74;
+        achievements.ProgressText = "74 %";
+        achievements.HasStats = true;
+        achievements.Achievements.Clear();
+
+        var seeds = new (string Name, string? Description, bool Hidden, bool Unlocked, int? DaysAgo, double GlobalPercent, int Progress)[]
+        {
+            ("Ветеран", "Одержите 100 побед в соревновательных матчах.", false, true, 1, 41.2, 0),
+            ("Мастер прицела", "Убейте 500 врагов из снайперской винтовки.", false, true, 3, 18.4, 0),
+            ("Командный игрок", "Сыграйте 50 матчей вместе с друзьями.", false, true, 6, 52.9, 0),
+            ("Первый шаг", "Завершите обучающий режим.", false, true, 14, 96.1, 0),
+            ("Коллекционер", "Соберите полную коллекцию наклеек.", false, false, null, 2.7, 0),
+            ("Мародёр", "Откройте 10 контейнеров.", false, false, null, 33.5, 7),
+            ("Легенда турнира", "Победите в чемпионате любого сезона.", false, false, null, 0.8, 0),
+            ("Секретный агент", null, true, false, null, 4.3, 0)
+        };
+
+        for (var i = 0; i < seeds.Length; i++)
+        {
+            var (name, description, hidden, unlocked, daysAgo, percent, progress) = seeds[i];
+            var snapshot = new AchievementSnapshot(
+                name,
+                description,
+                hidden,
+                string.Empty,
+                string.Empty,
+                percent,
+                unlocked,
+                daysAgo.HasValue ? DateTimeOffset.UtcNow - TimeSpan.FromDays(daysAgo.Value) : null,
+                progress,
+                0,
+                10,
+                null);
+            var row = new AchievementRow(snapshot, icons);
+            row.SetImage(CreateScreenshot(i + 2));
+            achievements.Achievements.Add(row);
+        }
     }
 
     private static async Task SeedInventoryAsync(InventoryViewModel inventory, IServiceProvider services)
